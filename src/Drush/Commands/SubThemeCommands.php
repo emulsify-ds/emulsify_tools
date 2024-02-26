@@ -98,46 +98,45 @@ class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
         catch (\Exception $e) {
           $logger->error($e->getMessage());
 
-          return 1;
-        }
+        return 1;
+      }
 
-        return 0;
-      });
+      return 0;
+    });
 
-      $cb->addCode(function (RoboStateData $data): int {
-        $logger = $this->logger();
-        $logger->debug(
-          'extract downloaded Emulsify starter recipe from <info>{packPath}</info> to <info>{srcDir}</info>',
-          [
-            'packPath' => $data['packPath'],
-            'srcDir' => $data['srcDir'],
-          ]
-        );
+    $cb->addCode(function (RoboStateData $data): int {
+      $logger = $this->logger();
+      $logger->debug(
+        'extract downloaded Emulsify starter recipe from <info>{packPath}</info> to <info>{srcDir}</info>',
+        [
+          'packPath' => $data['packPath'],
+          'srcDir' => $data['srcDir'],
+        ]
+      );
 
-        $data['srcDir'] = "{$data['path']}/recipe";
+      $data['srcDir'] = "{$data['path']}/recipe";
 
-        /** @var \Drupal\Core\Archiver\ArchiverManager $extractorManager */
-        $extractorManager = \Drupal::service('plugin.manager.archiver');
+      /** @var \Drupal\Core\Archiver\ArchiverManager $extractorManager */
+      $extractorManager = \Drupal::service('plugin.manager.archiver');
 
-        try {
-          /** @var \Drupal\Core\Archiver\ArchiverInterface $extractorInstance */
-          $extractorInstance = $extractorManager->getInstance(['filepath' => $data['packPath']]);
-          $extractorInstance->extract($data['srcDir']);
-        }
-        catch (\Exception $e) {
-          $this->logger()->error($e->getMessage());
+      try {
+        /** @var \Drupal\Core\Archiver\ArchiverInterface $extractorInstance */
+        $extractorInstance = $extractorManager->getInstance(['filepath' => $data['packPath']]);
+        $extractorInstance->extract($data['srcDir']);
+      }
+      catch (\Exception $e) {
+        $this->logger()->error($e->getMessage());
 
-          return 1;
-        }
+        return 1;
+      }
 
-        $topLevelDir = $this->getTopLevelDir($data['srcDir']);
-        if ($topLevelDir) {
-          $data['srcDir'] = $topLevelDir;
-        }
+      $topLevelDir = $this->getTopLevelDir($data['srcDir']);
+      if ($topLevelDir) {
+        $data['srcDir'] = $topLevelDir;
+      }
 
-        return 0;
-      });
-    }
+      return 0;
+    });
 
     $cb->addCode(function (RoboStateData $data) use ($dstDir): int {
       $logger = $this->logger();
