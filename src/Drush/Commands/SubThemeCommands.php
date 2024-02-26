@@ -65,19 +65,16 @@ class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
   public function generateSubTheme(
     string $name,
   ) {
-    $recipe = 'whisk';
     $machineName = $this->convertLabelToMachineName($name);
     $emulsifyDir = \Drupal::service('extension.list.theme')->getPath('emulsify');
-    $srcDir = "$emulsifyDir/{$recipe}/";
+    $srcDir = $emulsifyDir . "/whisk";
     $dstDir = "themes/custom/{$machineName}";
 
     $cb = $this->collectionBuilder();
     $cb->getState()->offsetSet('srcDir', $srcDir);
     $cb->addTask($this->taskTmpDir());
 
-    $this->logger()->error($srcDir);
-
-    if (UrlHelper::isValid($srcDir, FALSE)) {
+    if (UrlHelper::isValid($srcDir, TRUE)) {
       $cb->addCode(function (RoboStateData $data) use ($srcDir): int {
         $logger = $this->logger();
         $logger->debug(
