@@ -64,53 +64,36 @@ class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
   #[CLI\Usage(name: 'emulsify_tools:bake MyThemeName', description: 'The desired name of your child theme.')]
   public function generateSubTheme(
     string $name,
-    array $options = [
-      'machine-name' => '',
-      'description' => '',
-      'destination' => '',
-      'recipe' => 'whisk',
-    ]
   ) {
-    $recipe = $options['recipe'];
-
-    // @todo Use extension service.
+    $recipe = 'whisk';
+    $machineName = $this->convertLabelToMachineName($name);
     $emulsifyDir = \Drupal::service('extension.list.theme')->getPath('emulsify');
-    $srcDir = "$emulsifyDir/recipes/{$recipe}";
-
-    // Find recipe from other active themes.
-    /** @var \Drupal\Core\Extension\Extension[] $themes */
-    foreach (\Drupal::service('theme_handler')->listInfo() as $theme) {
-      $path = "{$theme->getPath()}/recipes/{$recipe}";
-      if ($this->fs->exists($path)) {
-        $srcDir = $path;
-      }
-    }
-
-    $dstDir = "{$options['destination']}/{$options['machine-name']}";
+    $srcDir = "$emulsifyDir/{$recipe}/";
+    $dstDir = "themes/custom/{$machineName}";
 
     $cb = $this->collectionBuilder();
     $cb->getState()->offsetSet('srcDir', $srcDir);
+    $cb->addTask($this->taskTmpDir());
 
-    if (UrlHelper::isValid($recipe, TRUE)) {
-      $recipeUrl = $recipe;
-      $cb->addTask($this->taskTmpDir());
+    $this->logger()->error($srcDir);
 
-      $cb->addCode(function (RoboStateData $data) use ($recipeUrl): int {
+    if (UrlHelper::isValid($srcDir, FALSE)) {
+      $cb->addCode(function (RoboStateData $data) use ($srcDir): int {
         $logger = $this->logger();
         $logger->debug(
-          'download Emulsify recipe from <info>{recipeUrl}</info>',
+          'download Emulsify recipe from <info>{$srcDir}</info>',
           [
-            'recipeUrl' => $recipeUrl,
+            'recipeUrl' => $srcDir,
           ]
         );
 
-        $fileName = $this->getFileNameFromUrl($recipeUrl);
+        $fileName = $this->getFileNameFromUrl($srcDir);
         $packDir = "{$data['path']}/pack";
         $data['packPath'] = "$packDir/$fileName";
 
         try {
           $this->fs->mkdir($packDir);
-          $this->fs->copy($recipeUrl, $data['packPath']);
+          $this->fs->copy($srcDir, $data['packPath']);
         }
         catch (\Exception $e) {
           $logger->error($e->getMessage());
@@ -178,8 +161,9 @@ class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
       return 0;
     });
 
-    $cb->addCode(function () use ($name, $options, $dstDir): int {
+    $cb->addCode(function () use ($name, $dstDir): int {
       $logger = $this->logger();
+      $machineName = $this->convertLabelToMachineName($name);
       $logger->debug(
         'customize Emulsify starter recipe in <info>{dstDir}</info> directory',
         [
@@ -190,220 +174,14 @@ class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
       $this
         ->subThemeCreator
         ->setDir($dstDir)
-        ->setMachineName($options['machine-name'])
+        ->setMachineName($machineName)
         ->setName($name)
-        ->setDescription($options['description'])
         ->generate();
 
       return 0;
     });
 
     return $cb;
-  }
-
-  /**
-   * Validate command.
-   *
-   * @param \Consolidation\AnnotatedCommand\CommandData $commandData
-   *   The command data.
-   *
-   * @hook validate emulsify:create
-   *
-   * @return \Consolidation\AnnotatedCommand\CommandError|null
-   *   The command error or null.
-   */
-  public function onHookValidateEmulsifyGenerateSubTheme(CommandData $commandData): ?CommandError {
-    $input = $commandData->input();
-
-    if (!$input->getOption('recipe')) {
-      $input->setOption('recipe', 'whisk');
-    }
-
-    if (!$input->getOption('description')) {
-      $input->setOption('description', $this->getDefaultDescription());
-    }
-
-    $machineName = $input->getOption('machine-name');
-    if (!$machineName) {
-      $machineName = $this->convertLabelToMachineName($input->getArgument('name'));
-      $input->setOption('machine-name', $machineName);
-    }
-
-    $destination = $input->getOption('destination');
-    if (!$destination) {
-      $destination = $this->getDefaultDestination();
-      $input->setOption('destination', $destination);
-    }
-
-    $dstDir = "$destination/$machineName";
-    if ($this->fs->exists($dstDir) && !$this->isDirEmpty($dstDir)) {
-      return new CommandError("Destination directory '$dstDir' not empty", 1);
-    }
-
-    return NULL;
-  }
-
-  /**
-   * On validate arg label.
-   *
-   * @param \Consolidation\AnnotatedCommand\CommandData $commandData
-   *   The command data.
-   *
-   * @hook validate @emulsifyArgLabel
-   *
-   * @return \Consolidation\AnnotatedCommand\CommandError|null
-   *   The command error or null.
-   */
-  public function onHookValidateEmulsifyArgLabel(CommandData $commandData): ?CommandError {
-    $annotationKey = 'emulsifyArgLabel';
-    $annotationData = $commandData->annotationData();
-    if (!$annotationData->has($annotationKey)) {
-      return NULL;
-    }
-
-    $commandErrors = [];
-    $argNames = $this->parseMultiValueAnnotation($annotationData->get($annotationKey));
-    foreach ($argNames as $argName) {
-      $commandErrors[] = $this->onHookValidateEmulsifyArgLabelSingle($commandData, $argName);
-    }
-
-    return $this->aggregateCommandErrors($commandErrors);
-  }
-
-  /**
-   * On validate arg single label.
-   *
-   * @param \Consolidation\AnnotatedCommand\CommandData $commandData
-   *   The command data.
-   * @param string $argName
-   *   The arg name.
-   *
-   * @return \Consolidation\AnnotatedCommand\CommandError|null
-   *   The command error or null.
-   */
-  protected function onHookValidateEmulsifyArgLabelSingle(CommandData $commandData, string $argName): ?CommandError {
-    $label = $commandData->input()->getArgument($argName);
-    if (strlen($label) === 0) {
-      return NULL;
-    }
-
-    if (!preg_match('/^[^\t\r\n]+$/ui', $label)) {
-      return new CommandError("Tabs and new line characters are not allowed in argument '$argName'.");
-    }
-
-    return NULL;
-  }
-
-  /**
-   * On validate machine name.
-   *
-   * @param \Consolidation\AnnotatedCommand\CommandData $commandData
-   *   The command data.
-   *
-   * @hook validate @emulsifyOptionMachineName
-   *
-   * @return \Consolidation\AnnotatedCommand\CommandError|null
-   *   The command error or null.
-   */
-  public function onHookValidateEmulsifyOptionMachineName(CommandData $commandData) {
-    $annotationKey = 'emulsifyOptionMachineName';
-    $annotationData = $commandData->annotationData();
-    if (!$annotationData->has($annotationKey)) {
-      return NULL;
-    }
-
-    $commandErrors = [];
-    $optionNames = $this->parseMultiValueAnnotation($annotationData->get($annotationKey));
-    foreach ($optionNames as $optionName) {
-      $commandErrors[] = $this->onHookValidateEmulsifyOptionMachineNameSingle($commandData, $optionName);
-    }
-
-    return $this->aggregateCommandErrors($commandErrors);
-  }
-
-  /**
-   * On validate single machine name.
-   *
-   * @param \Consolidation\AnnotatedCommand\CommandData $commandData
-   *   The command data.
-   * @param string $optionName
-   *   The option name.
-   *
-   * @return \Consolidation\AnnotatedCommand\CommandError|null
-   *   The command error or null.
-   */
-  protected function onHookValidateEmulsifyOptionMachineNameSingle(CommandData $commandData, $optionName): ?CommandError {
-    $machineNames = $commandData->input()->getOption($optionName);
-    if (!is_array($machineNames)) {
-      $machineNames = strlen($machineNames) !== 0 ? [$machineNames] : [];
-    }
-
-    $invalidMachineNames = [];
-    foreach ($machineNames as $machineName) {
-      if (!preg_match('/^[a-z][a-z0-9_]*$/', $machineName)) {
-        $invalidMachineNames[] = $machineName;
-      }
-    }
-
-    if ($invalidMachineNames) {
-      return new CommandError("Following machine-names are invalid in option '$optionName': " . implode(', ', $invalidMachineNames));
-    }
-
-    return NULL;
-  }
-
-  /**
-   * Parse multi value annotation.
-   *
-   * @param string $value
-   *   The value.
-   *
-   * @return array
-   *   The parsed array.
-   */
-  protected function parseMultiValueAnnotation(string $value): array {
-    return $this->explodeCommaSeparatedList($value);
-  }
-
-  /**
-   * Explode comma separated list.
-   *
-   * @param string $items
-   *   The items.
-   *
-   * @return array
-   *   The exploded array.
-   */
-  protected function explodeCommaSeparatedList(string $items): array {
-    return array_filter(
-      preg_split('/\s*,\s*/', trim($items)),
-      'mb_strlen'
-    );
-  }
-
-  /**
-   * Aggregate command errors.
-   *
-   * @param \Consolidation\AnnotatedCommand\CommandError[] $commandErrors
-   *   The command errors.
-   *
-   * @return \Consolidation\AnnotatedCommand\CommandError|null
-   *   The error or null.
-   */
-  protected function aggregateCommandErrors(array $commandErrors): ?CommandError {
-    $errorCode = 0;
-    $messages = [];
-    /** @var \Consolidation\AnnotatedCommand\CommandError $commandError */
-    foreach (array_filter($commandErrors) as $commandError) {
-      $messages[] = $commandError->getOutputData();
-      $errorCode = max($errorCode, $commandError->getExitCode());
-    }
-
-    if ($messages) {
-      return new CommandError(implode(PHP_EOL, $messages), $errorCode);
-    }
-
-    return NULL;
   }
 
   /**
@@ -417,33 +195,6 @@ class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
    */
   protected function convertLabelToMachineName(string $label): string {
     return mb_strtolower(preg_replace('/[^a-z0-9_]+/ui', '_', $label));
-  }
-
-  /**
-   * Get the default destination.
-   *
-   * @return string
-   *   The default destination.
-   */
-  protected function getDefaultDestination(): string {
-    return './themes';
-  }
-
-  /**
-   * Get the default description.
-   */
-  protected function getDefaultDescription(): string {
-    return 'A theme based on Emulsify.';
-  }
-
-  /**
-   * Check if dir is empty.
-   *
-   * @return bool
-   *   TRUE if directory is empty.
-   */
-  protected function isDirEmpty(string $dir): bool {
-    return !(new \FilesystemIterator($dir))->valid();
   }
 
   /**

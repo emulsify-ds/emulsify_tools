@@ -59,7 +59,7 @@ class SubThemeGenerator {
    *
    * @var string
    */
-  protected $description = '';
+  protected $description = 'A subtheme based on Emulsify';
 
   /**
    * Initialize the class.
