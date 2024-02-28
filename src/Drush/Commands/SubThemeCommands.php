@@ -60,8 +60,8 @@ class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
    *
    */
   #[CLI\Command(name: 'emulsify_tools:bake', aliases: ['emulsify'])]
-  #[CLI\Argument(name: 'name', description: 'The name of your emulsify-based theme.')]
-  #[CLI\Usage(name: 'emulsify_tools:bake MyThemeName', description: 'The desired name of your child theme.')]
+  #[CLI\Argument(name: 'name')]
+  #[CLI\Usage(name: 'emulsify_tools:bake MyThemeName')]
   public function generateSubTheme(
     string $name,
   ) {

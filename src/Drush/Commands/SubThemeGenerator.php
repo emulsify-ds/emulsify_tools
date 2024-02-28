@@ -55,13 +55,6 @@ class SubThemeGenerator {
   protected $name = '';
 
   /**
-   * The description.
-   *
-   * @var string
-   */
-  protected $description = 'A subtheme based on Emulsify';
-
-  /**
    * Initialize the class.
    */
   public function __construct() {
@@ -141,30 +134,6 @@ class SubThemeGenerator {
    */
   public function setName(string $name) {
     $this->name = $name;
-
-    return $this;
-  }
-
-  /**
-   * Get the description.
-   *
-   * @return string
-   *   The description.
-   */
-  public function getDescription(): string {
-    return $this->description;
-  }
-
-  /**
-   * Set the description.
-   *
-   * @param string $description
-   *   The description.
-   *
-   * @return $this
-   */
-  public function setDescription(string $description) {
-    $this->description = $description;
 
     return $this;
   }
@@ -268,10 +237,8 @@ class SubThemeGenerator {
    */
   protected function getFileContentReplacementPairs(): array {
     return [
-      'EMULSIFY_RECIPE_NAME' => $this->getName(),
-      'EMULSIFY_RECIPE_DESCRIPTION' => $this->getDescription(),
-      'emulsify_recipe' => $this->getMachineName(),
-      "\nhidden: true\n" => "\n",
+      'EMULSIFY_NAME' => $this->getName(),
+      'whisk' => $this->getMachineName(),
     ];
   }
 
