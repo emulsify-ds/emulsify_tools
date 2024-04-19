@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-namespace Drupal\emulsify_tools\Drush\Commands;
+namespace Drupal\emulsify_tools;
 
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;

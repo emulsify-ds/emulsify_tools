@@ -11,7 +11,8 @@ services:
       - { name: twig.extension }
   emulsify_tools.commands:
     class: Drupal\emulsify_tools\Drush\Commands\SubThemeCommands
-    arguments: ['@file_system']
+    arguments: ['@extension.list.theme', '@plugin.manager.archiver', '@emulsify_tools.subtheme_generator', '@file_system']
     tags:
       - { name: drush.command }
-
+  emulsify_tools.subtheme_generator:
+    class: Drupal\emulsify_tools\SubThemeGenerator

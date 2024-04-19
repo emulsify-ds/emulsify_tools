@@ -4,18 +4,20 @@ declare(strict_types = 1);
 
 namespace Drupal\emulsify_tools\Drush\Commands;
 
-use Consolidation\AnnotatedCommand\CommandData;
-use Consolidation\AnnotatedCommand\CommandError;
 use Drupal\Component\Utility\UrlHelper;
+use Drupal\Core\Archiver\ArchiverManager;
+use Drupal\Core\DependencyInjection\AutowireTrait;
+use Drupal\Core\Extension\ThemeExtensionList;
+use Drupal\emulsify_tools\SubThemeGenerator;
 use Drush\Attributes as CLI;
 use Drush\Commands\DrushCommands;
 use Robo\Contract\BuilderAwareInterface;
 use Robo\State\Data as RoboStateData;
-use Robo\TaskAccessor;
-use Symfony\Component\Filesystem\Filesystem;
-
 use Robo\Task\Archive\Tasks as ArchiveTaskLoader;
 use Robo\Task\Filesystem\Tasks as FilesystemTaskLoader;
+use Robo\TaskAccessor;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
 
 /**
@@ -30,13 +32,14 @@ class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
   use TaskAccessor;
   use ArchiveTaskLoader;
   use FilesystemTaskLoader;
+  use AutowireTrait;
 
   /**
    * The emulsify subtheme generator.
    *
-   * @var \Drupal\emulsify\Commands\SubThemeGenerator
+   * @var \Drupal\emulsify_tools\SubThemeGenerator
    */
-  protected $subThemeCreator;
+  protected $subThemeGenerator;
 
   /**
    * The filesystem.
@@ -46,18 +49,48 @@ class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
   protected $fs;
 
   /**
+   * The theme extension list.
+   *
+   * @var \Drupal\Core\Extension\ThemeExtensionList
+   */
+  protected $themeExtensionList;
+
+  /**
+   * The plugin manager archiver.
+   *
+   * @var \Drupal\Core\Archiver\ArchiverManager
+   */
+  protected $archiverManager;
+
+  /**
    * {@inheritdoc}
    */
-  public function __construct(?SubThemeGenerator $subThemeCreator = NULL, ?Filesystem $fs = NULL) {
-    $this->subThemeCreator = $subThemeCreator ?: new SubThemeGenerator();
-    $this->fs = $fs ?: new Filesystem();
+  public function __construct(
+    ThemeExtensionList $themeExtensionList,
+    ArchiverManager $archiverManager,
+    SubThemeGenerator $subThemeGenerator,
+    ) {
+    $this->themeExtensionList = $themeExtensionList;
+    $this->archiverManager = $archiverManager;
+    $this->subThemeGenerator = $subThemeGenerator;
+    $this->fs = new Filesystem();
 
     parent::__construct();
   }
 
   /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container) {
+    return new static(
+      $container->get('extension.list.theme'),
+      $container->get('plugin.manager.archiver'),
+      $container->get('emulsify_tools.subtheme_generator'),
+    );
+  }
+
+  /**
    * Creates an Emulsify sub-theme.
-   *
    */
   #[CLI\Command(name: 'emulsify_tools:bake', aliases: ['emulsify'])]
   #[CLI\Argument(name: 'name', description: 'The name of your emulsify based subtheme.')]
@@ -66,7 +99,7 @@ class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
     string $name,
   ) {
     $machineName = $this->convertLabelToMachineName($name);
-    $emulsifyDir = \Drupal::service('extension.list.theme')->getPath('emulsify');
+    $emulsifyDir = $this->themeExtensionList->getPath('emulsify');
     $srcDir = $emulsifyDir . "/whisk";
     $dstDir = "themes/custom/{$machineName}";
 
@@ -113,12 +146,9 @@ class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
 
         $data['srcDir'] = "{$data['path']}/recipe";
 
-        /** @var \Drupal\Core\Archiver\ArchiverManager $extractorManager */
-        $extractorManager = \Drupal::service('plugin.manager.archiver');
-
         try {
           /** @var \Drupal\Core\Archiver\ArchiverInterface $extractorInstance */
-          $extractorInstance = $extractorManager->getInstance(['filepath' => $data['packPath']]);
+          $extractorInstance = $this->archiverManager->getInstance(['filepath' => $data['packPath']]);
           $extractorInstance->extract($data['srcDir']);
         }
         catch (\Exception $e) {
@@ -169,7 +199,7 @@ class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
       );
 
       $this
-        ->subThemeCreator
+        ->subThemeGenerator
         ->setDir($dstDir)
         ->setMachineName($machineName)
         ->setName($name)
