@@ -1,6 +1,3 @@
-> [!WARNING]  
-> Work in progress.
-> 
 # Emulsify Tools module
 
 This module provides two Twig extensions used in the [Emulsify Design System](https://github.com/emulsify-ds/) as well as a theme generation Drush command.
