@@ -16,3 +16,7 @@ services:
       - { name: drush.command }
   emulsify_tools.subtheme_generator:
     class: Drupal\emulsify_tools\SubThemeGenerator
+  emulsify_tools.twig.switch:
+    class: Drupal\emulsify_tools\SwitchExtension
+    tags:
+      - { name: twig.extension }
