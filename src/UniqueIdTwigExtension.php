@@ -38,7 +38,7 @@ final class UniqueIdTwigExtension extends AbstractExtension {
    *   An optional prepended string.
    *
    * @return string|int
-   *   The string combined with a random ID.
+   *   The string combined with a random ID or just a random number.
    */
   public function getUniqueId($prepend = NULL): string|int {
     $id = rand(1, 1000000000);
