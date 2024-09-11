@@ -16,3 +16,7 @@ services:
       - { name: drush.command }
   emulsify_tools.subtheme_generator:
     class: Drupal\emulsify_tools\SubThemeGenerator
+  emulsify_tools.emulsify_tools_unique_id:
+    class: Drupal\emulsify_tools\UniqueIdTwigExtension
+    tags:
+      - { name: twig.extension }
