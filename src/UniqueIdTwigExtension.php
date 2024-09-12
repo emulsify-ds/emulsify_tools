@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\emulsify_tools;
 
+use Drupal\Component\Utility\Crypt;
+use Drupal\Component\Utility\Html;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 
@@ -32,24 +34,40 @@ final class UniqueIdTwigExtension extends AbstractExtension {
   }
 
   /**
-   * Get a unique ID and make sure it is unique from others on the same page.
+   * Generate a unique ID and verify it is unique from others on the same page.
    *
    * @var string $prepend
    *   An optional prepended string.
    *
-   * @return string|int
-   *   The string combined with a random ID or just a random number.
+   * @return string
+   *   A prepended string combined with a random ID or just a random ID.
    */
-  public function getUniqueId($prepend = NULL): string|int {
-    $id = rand(1, 1000000000);
+  public function getUniqueId($prepend = NULL): string {
+    // Generate unique number.
+    $id = $this->generateRandomId();
+
+    // Check if ID has already been used on the page.
     while (\in_array($id, $this->uniqueIds, TRUE)) {
-      $id = rand(1, 1000000000);
+      $id = $this->generateRandomId();
     }
     $this->uniqueIds[] = $id;
+
     $return = ($prepend) ? "$prepend-$id" : $id;
 
     return $return;
 
+  }
+
+  /**
+   * Generate unique ID.
+   */
+  private function generateRandomId() {
+    // Always start ID with a letter for W3C best practices.
+    $randChars = 'abcdefghijklmnopqrstuvwxyz';
+    $randCharNum = rand(0, 25);
+    $randChar = substr($randChars, $randCharNum, 1);
+
+    return $randChar . bin2hex(random_bytes(3));
   }
 
 }
