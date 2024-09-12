@@ -67,7 +67,7 @@ final class UniqueIdTwigExtension extends AbstractExtension {
     $randCharNum = rand(0, 25);
     $randChar = substr($randChars, $randCharNum, 1);
 
-    return $randChar . bin2hex(random_bytes(3));
+    return $randChar . bin2hex(random_bytes(4));
   }
 
 }
