@@ -61,13 +61,18 @@ final class UniqueIdTwigExtension extends AbstractExtension {
   /**
    * Generate unique ID.
    */
-  private function generateRandomId() {
-    // Always start ID with a letter for W3C best practices.
-    $randChars = 'abcdefghijklmnopqrstuvwxyz';
-    $randCharNum = rand(0, 25);
-    $randChar = substr($randChars, $randCharNum, 1);
+  private function generateRandomId($length = 10) {
+    $letters = 'abcdefghijklmnopqrstuvwxyz';
+    $chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
 
-    return $randChar . bin2hex(random_bytes(4));
+    // First character must be a letter for DOM ids.
+    $id = $letters[random_int(0, strlen($letters) - 1)];
+
+    for ($i = 1; $i < $length; $i++) {
+      $id .= $chars[random_int(0, strlen($chars) - 1)];
+    }
+
+    return $id;
   }
 
 }
