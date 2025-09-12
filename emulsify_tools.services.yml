@@ -16,3 +16,6 @@ services:
       - { name: drush.command }
   emulsify_tools.subtheme_generator:
     class: Drupal\emulsify_tools\SubThemeGenerator
+  emulsify_tools.favicon_manager:
+    class: Drupal\emulsify_tools\FaviconManager
+    arguments: ['@entity_type.manager', '@config.factory', '@cache.data']

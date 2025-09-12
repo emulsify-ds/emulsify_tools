@@ -1,0 +1,75 @@
+<?php
+
+use Drupal\Core\Routing\RouteMatchInterface;
+
+/**
+ * Implements hook_help().
+ */
+function emulsify_tools_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    case 'help.page.emulsify_tools':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('Emulsify Tools provides helpful developer utilities, including favicon management from realfavicongenerator.net.') . '</p>';
+      return $output;
+
+    default:
+  }
+}
+
+/**
+ * Implements hook_page_attachments_alter().
+ */
+function emulsify_tools_page_attachments_alter(array &$attachments) {
+  $theme = \Drupal::theme()->getActiveTheme()->getName();
+  $faviconManager = \Drupal::service('emulsify_tools.favicon_manager');
+
+  if ($tags = $faviconManager->getTags($theme)) {
+    // Remove default favicon from html_head_link.
+    if (!empty($attachments['#attached']['html_head_link'])) {
+      foreach ($attachments['#attached']['html_head_link'] as $i => $item) {
+        if (!empty($item) && is_array($item)) {
+          foreach ($item as $ii => $iitem) {
+            if (isset($iitem['rel']) && in_array($iitem['rel'], ['shortcut icon', 'icon'])) {
+              unset($attachments['#attached']['html_head_link'][$i][$ii]);
+            }
+          }
+          if (empty($attachments['#attached']['html_head_link'][$i])) {
+            unset($attachments['#attached']['html_head_link'][$i]);
+          }
+        }
+      }
+      if (empty($attachments['#attached']['html_head_link'])) {
+        unset($attachments['#attached']['html_head_link']);
+      }
+    }
+    // Attach favicon tags.
+    $attachments['#attached']['html_head'][] = [
+      [
+        '#type' => 'markup',
+        '#markup' => $tags,
+        '#allowed_tags' => ['link', 'meta'],
+        '#cache' => [
+          'tags' => $faviconManager->getCacheTags(),
+        ],
+      ],
+      'emulsify_tools_favicon',
+    ];
+  }
+}
+
+/**
+ * Load favicon by theme.
+ *
+ * @param string $theme_id
+ *   The theme id.
+ *
+ * @return \Drupal\emulsify_tools\Entity\Favicon|null
+ *   The Favicon entity.
+ */
+function emulsify_tools_favicon_load_by_theme($theme_id = NULL) {
+  if (empty($active_theme)) {
+    $active_theme = \Drupal::theme()->getActiveTheme()->getName();
+  }
+  return \Drupal::service('emulsify_tools.favicon_manager')->loadFavicon($active_theme);
+}
