@@ -8,6 +8,6 @@ dependencies:
   - drupal:file
 
 # Information added by Drupal.org packaging script on 2023-02-16
-version: '1.0.0'
+version: '1.0.2'
 project: 'emulsify_tools'
 datestamp: 1676582811
