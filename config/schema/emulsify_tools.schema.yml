@@ -1,0 +1,29 @@
+emulsify_tools.favicon_package.*:
+  type: config_entity
+  label: 'Favicon Package config'
+  mapping:
+    id:
+      type: string
+      label: 'ID'
+    label:
+      type: label
+      label: 'Label'
+    uuid:
+      type: string
+    tags:
+      type: sequence
+      label: 'Tags'
+    archive:
+      type: sequence
+      label: 'Archive'
+
+emulsify_tools.settings:
+  type: config_object
+  label: 'Emulsify Tools settings'
+  mapping:
+    themes:
+      type: sequence
+      label: 'Theme Favicon Mappings'
+      sequence:
+        type: string
+        label: 'Favicon Package ID'

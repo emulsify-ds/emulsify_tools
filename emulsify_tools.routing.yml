@@ -1,0 +1,31 @@
+entity.favicon_package.collection:
+  path: '/admin/structure/favicon-package'
+  defaults:
+    _entity_list: 'favicon_package'
+    _title: 'Favicon Packages'
+  requirements:
+    _permission: 'administer site configuration'
+
+entity.favicon_package.add_form:
+  path: '/admin/structure/favicon-package/add'
+  defaults:
+    _entity_form: 'favicon_package.add'
+    _title: 'Add Favicon Package'
+  requirements:
+    _permission: 'administer site configuration'
+
+entity.favicon_package.edit_form:
+  path: '/admin/structure/favicon-package/{favicon_package}/edit'
+  defaults:
+    _entity_form: 'favicon_package.edit'
+    _title: 'Edit Favicon Package'
+  requirements:
+    _permission: 'administer site configuration'
+
+entity.favicon_package.delete_form:
+  path: '/admin/structure/favicon-package/{favicon_package}/delete'
+  defaults:
+    _entity_form: 'favicon_package.delete'
+    _title: 'Delete Favicon Package'
+  requirements:
+    _permission: 'administer site configuration'

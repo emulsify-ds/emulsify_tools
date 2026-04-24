@@ -9,23 +9,23 @@ use Drupal\Core\Entity\EntityMalformedException;
 use Drupal\Core\File\FileSystemInterface;
 
 /**
- * Defines the Favicon entity.
+ * Defines the Favicon Package entity.
  *
  * @ConfigEntityType(
- *   id = "emulsify_tools_favicon",
- *   label = @Translation("Favicon"),
+ *   id = "favicon_package",
+ *   label = @Translation("Favicon Package"),
  *   handlers = {
- *     "list_builder" = "Drupal\emulsify_tools\FaviconListBuilder",
+ *     "list_builder" = "Drupal\emulsify_tools\FaviconPackageListBuilder",
  *     "form" = {
- *       "add" = "Drupal\emulsify_tools\Form\FaviconForm",
- *       "edit" = "Drupal\emulsify_tools\Form\FaviconForm",
- *       "delete" = "Drupal\emulsify_tools\Form\FaviconDeleteForm"
+ *       "add" = "Drupal\emulsify_tools\Form\FaviconPackageForm",
+ *       "edit" = "Drupal\emulsify_tools\Form\FaviconPackageForm",
+ *       "delete" = "Drupal\emulsify_tools\Form\FaviconPackageDeleteForm"
  *     },
  *     "route_provider" = {
- *       "html" = "Drupal\emulsify_tools\FaviconHtmlRouteProvider",
+ *       "html" = "Drupal\Core\Entity\Routing\AdminHtmlRouteProvider",
  *     },
  *   },
- *   config_prefix = "emulsify_tools_favicon",
+ *   config_prefix = "favicon_package",
  *   admin_permission = "administer site configuration",
  *   entity_keys = {
  *     "id" = "id",
@@ -39,21 +39,47 @@ use Drupal\Core\File\FileSystemInterface;
  *     "archive",
  *   },
  *   links = {
- *     "canonical" = "/admin/structure/emulsify-tools-favicon/{emulsify_tools_favicon}",
- *     "add-form" = "/admin/structure/emulsify-tools-favicon/add",
- *     "edit-form" = "/admin/structure/emulsify-tools-favicon/{emulsify_tools_favicon}/edit",
- *     "delete-form" = "/admin/structure/emulsify-tools-favicon/{emulsify_tools_favicon}/delete",
- *     "collection" = "/admin/structure/emulsify-tools-favicon"
+ *     "canonical" = "/admin/structure/favicon-package/{favicon_package}",
+ *     "add-form" = "/admin/structure/favicon-package/add",
+ *     "edit-form" = "/admin/structure/favicon-package/{favicon_package}/edit",
+ *     "delete-form" = "/admin/structure/favicon-package/{favicon_package}/delete",
+ *     "collection" = "/admin/structure/favicon-package"
  *   }
  * )
  */
-class Favicon extends ConfigEntityBase implements FaviconInterface {
+class FaviconPackage extends ConfigEntityBase implements FaviconPackageInterface {
 
+  /**
+   * The Favicon Package ID.
+   *
+   * @var string
+   */
   protected $id;
-  protected $label;
-  protected $manifest = [];
-  protected $directory = 'public://favicon';
 
+  /**
+   * The Favicon Package label.
+   *
+   * @var string
+   */
+  protected $label;
+
+  /**
+   * The manifest of this package.
+   *
+   * @var array
+   */
+  protected $manifest = [];
+
+  /**
+   * The folder where Favicon Packages exist.
+   *
+   * @var string
+   */
+  protected $directory = 'public://favicon_packages';
+
+  /**
+   * Set the tags from string.
+   */
   public function setTagsAsString($string) {
     $tags = array_filter(explode(PHP_EOL, $string));
     foreach ($tags as $pos => $tag) {
@@ -62,15 +88,24 @@ class Favicon extends ConfigEntityBase implements FaviconInterface {
     $this->set('tags', $tags);
   }
 
+  /**
+   * {@inheritDoc}
+   */
   public function getTagsAsString() {
     $tags = $this->get('tags');
     return $tags ? implode(PHP_EOL, $tags) : '';
   }
 
+  /**
+   * Get the tags.
+   */
   public function getTags() {
     return $this->get('tags');
   }
 
+  /**
+   * Get the manifest.
+   */
   public function getManifest() {
     if (empty($this->manifest)) {
       $this->manifest = [];
@@ -83,6 +118,9 @@ class Favicon extends ConfigEntityBase implements FaviconInterface {
     return $this->manifest;
   }
 
+  /**
+   * Get the largest manifest image.
+   */
   public function getManifestLargeImage() {
     $image = '';
     if ($manifest = $this->getManifest()) {
@@ -100,31 +138,47 @@ class Favicon extends ConfigEntityBase implements FaviconInterface {
     return $image;
   }
 
+  /**
+   * {@inheritDoc}
+   */
   public function setArchive($zip_path) {
     $data = strtr(base64_encode(addslashes(gzcompress(serialize(file_get_contents($zip_path)), 9))), '+/=', '-_,');
     $parts = str_split($data, 200000);
     $this->set('archive', $parts);
   }
 
+  /**
+   * Get the archive from base64 encoded string.
+   */
   public function getArchive() {
     $data = implode('', $this->get('archive'));
     return unserialize(gzuncompress(stripslashes(base64_decode(strtr($data, '-_,', '+/=')))));
   }
 
-  public function getThumbnail($image_name = 'favicon-16x16.png') {
+  /**
+   * Get a favicon image.
+   */
+  public function getThumbnail($image_name = 'favicon-96x96.png') {
     return $this->getDirectory() . '/' . $image_name;
   }
 
+  /**
+   * Return the location where Favicon Packages exist.
+   *
+   * @return string
+   *   The directory path.
+   */
   public function getDirectory() {
     return $this->directory . '/' . $this->id();
   }
 
+  /**
+   * {@inheritdoc}
+   */
   public function preSave(EntityStorageInterface $storage) {
     parent::preSave($storage);
 
-    $original = NULL;
     if (!$this->isNew()) {
-      /** @var \Drupal\emulsify_tools\Entity\FaviconInterface $original */
       $original = $storage->loadUnchanged($this->getOriginalId());
     }
 
@@ -133,24 +187,31 @@ class Favicon extends ConfigEntityBase implements FaviconInterface {
     }
 
     if (!$this->get('archive')) {
-      throw new EntityMalformedException('Favicon package is required.');
+      throw new EntityMalformedException('Favicon package archive is required.');
     }
-    if ($this->isNew() || ($original && $original->get('archive') !== $this->get('archive'))) {
+    if ($this->isNew() || (isset($original) && $original->get('archive') !== $this->get('archive'))) {
       $this->archiveDecode();
     }
   }
 
+  /**
+   * {@inheritdoc}
+   */
   public static function preDelete(EntityStorageInterface $storage, array $entities) {
     parent::preDelete($storage, $entities);
     /** @var \Drupal\Core\File\FileSystemInterface $file_system */
     $file_system = \Drupal::service('file_system');
     foreach ($entities as $entity) {
-      /** @var \Drupal\emulsify_tools\Entity\FaviconInterface $entity */
+      /** @var \Drupal\emulsify_tools\Entity\FaviconPackageInterface $entity */
       $file_system->deleteRecursive($entity->getDirectory());
-      @rmdir($entity->directory);
+      // Clean up empty directory. Will fail silently if it is not empty.
+      @rmdir($entity->getDirectory());
     }
   }
 
+  /**
+   * Take base64 encoded archive and save it to a temporary file for extraction.
+   */
   protected function archiveDecode() {
     $data = $this->getArchive();
     $zip_path = 'temporary://' . $this->id() . '.zip';
@@ -158,6 +219,12 @@ class Favicon extends ConfigEntityBase implements FaviconInterface {
     $this->archiveExtract($zip_path);
   }
 
+  /**
+   * Properly extract and store an archive.
+   *
+   * @param string $zip_path
+   *   The absolute path to the zip file.
+   */
   public function archiveExtract($zip_path) {
     /** @var \Drupal\Core\File\FileSystemInterface $file_system */
     $file_system = \Drupal::service('file_system');
@@ -173,50 +240,61 @@ class Favicon extends ConfigEntityBase implements FaviconInterface {
     $file_system->prepareDirectory($directory, FileSystemInterface::CREATE_DIRECTORY | FileSystemInterface::MODIFY_PERMISSIONS);
     $archiver->extract($directory);
 
-    \Drupal::messenger()->addMessage(t('Favicon package has been successfully %op.', ['%op' => ($this->isNew() ? t('updated') : t('added'))]));
+    \Drupal::messenger()->addMessage(t('Favicon package has been successfully %op.', ['%op' => ($this->isNew() ? t('added') : t('updated'))]));
   }
 
+  /**
+   * Get valid tags as strings.
+   */
   public function getValidTagsAsString() {
     return implode(PHP_EOL, $this->getValidTags()) . PHP_EOL;
   }
 
+  /**
+   * Get valid tags.
+   */
   public function getValidTags() {
     $base_path = base_path();
     $html = $this->getTagsAsString();
     $found = [];
-    $missing = [];
+
+    if (empty($html)) {
+      return $found;
+    }
 
     $dom = new \DOMDocument();
-    $dom->loadHTML($html);
+    @$dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
 
-    $docroot = preg_replace('/' . preg_quote($base_path, '/') . '$/', '/', DRUPAL_ROOT);
+    $base_path_normalized = preg_replace('/' . preg_quote($base_path, '/') . '$/', '/', DRUPAL_ROOT);
 
+    // Find all the links.
     $tags = $dom->getElementsByTagName('link');
     foreach ($tags as $tag) {
-      $file_path = $this->normalizePath($tag->getAttribute('href'));
-      $tag->setAttribute('href', $file_path);
+      $href = $tag->getAttribute('href');
+      if ($href) {
+        $file_path = $this->normalizePath($href);
+        $tag->setAttribute('href', $file_path);
 
-      if (file_exists($docroot . $file_path) && is_readable($docroot . $file_path)) {
-        $found[] = $dom->saveXML($tag);
-      }
-      else {
-        $missing[] = $dom->saveXML($tag);
+        if (file_exists($base_path_normalized . $file_path) && is_readable($base_path_normalized . $file_path)) {
+          $found[] = $dom->saveXML($tag);
+        }
       }
     }
 
+    // Find meta tags.
     $tags = $dom->getElementsByTagName('meta');
     foreach ($tags as $tag) {
       $name = $tag->getAttribute('name');
 
       if ($name === 'msapplication-TileImage') {
-        $file_path = $this->normalizePath($tag->getAttribute('content'));
-        $tag->setAttribute('content', $file_path);
+        $content = $tag->getAttribute('content');
+        if ($content) {
+          $file_path = $this->normalizePath($content);
+          $tag->setAttribute('content', $file_path);
 
-        if (file_exists($docroot . $file_path) && is_readable($docroot . $file_path)) {
-          $found[] = $dom->saveXML($tag);
-        }
-        else {
-          $missing[] = $dom->saveXML($tag);
+          if (file_exists($base_path_normalized . $file_path) && is_readable($base_path_normalized . $file_path)) {
+            $found[] = $dom->saveXML($tag);
+          }
         }
       }
       else {
@@ -226,12 +304,18 @@ class Favicon extends ConfigEntityBase implements FaviconInterface {
     return $found;
   }
 
+  /**
+   * Normalize path.
+   *
+   * @return string
+   *   The normalized path.
+   */
   protected function normalizePath($file_path) {
     /** @var \Drupal\Core\File\FileUrlGeneratorInterface $url_generator */
     $url_generator = \Drupal::service('file_url_generator');
-    return $url_generator->generateString($this->getDirectory() . $file_path);
+    // Extract filename if it starts with a slash or is just a relative path.
+    $filename = ltrim($file_path, '/');
+    return $url_generator->generateString($this->getDirectory() . '/' . $filename);
   }
 
 }
-
-

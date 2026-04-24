@@ -8,7 +8,7 @@ use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Cache\Cache;
 
 /**
- * The Emulsify Tools Favicon manager.
+ * The Favicon manager.
  */
 class FaviconManager implements FaviconManagerInterface {
 
@@ -20,7 +20,7 @@ class FaviconManager implements FaviconManagerInterface {
   public $entityTypeManager;
 
   /**
-   * The favicon configuration.
+   * The emulsify tools configuration.
    *
    * @var \Drupal\Core\Config\ImmutableConfig
    */
@@ -46,16 +46,23 @@ class FaviconManager implements FaviconManagerInterface {
    * @var array
    */
   protected $cacheTags = [
-    'config:emulsify_tools_favicon.settings',
-    'config:emulsify_tools_favicon_list',
+    'config:emulsify_tools.settings',
+    'config:favicon_package_list',
   ];
 
   /**
    * Constructs a new FaviconManager object.
+   *
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The config factory.
+   * @param \Drupal\Core\Cache\CacheBackendInterface $cache
+   *   The cache backend.
    */
   public function __construct(EntityTypeManagerInterface $entity_type_manager, ConfigFactoryInterface $config_factory, CacheBackendInterface $cache) {
     $this->entityTypeManager = $entity_type_manager;
-    $this->config = $config_factory->get('emulsify_tools_favicon.settings');
+    $this->config = $config_factory->get('emulsify_tools.settings');
     $this->cache = $cache;
   }
 
@@ -64,7 +71,7 @@ class FaviconManager implements FaviconManagerInterface {
    */
   public function getTags($theme_id) {
     $tags = NULL;
-    $enabled = (array) $this->config->get('themes');
+    $enabled = $this->config->get('themes');
     if (!empty($enabled[$theme_id])) {
       $cid = $this->cid . '.tags.' . $theme_id;
       if ($cache = $this->cache->get($cid)) {
@@ -85,9 +92,9 @@ class FaviconManager implements FaviconManagerInterface {
    */
   public function loadFavicon($theme_id) {
     $favicon = NULL;
-    $enabled = (array) $this->config->get('themes');
+    $enabled = $this->config->get('themes');
     if (!empty($enabled[$theme_id])) {
-      $favicon = $this->entityTypeManager->getStorage('emulsify_tools_favicon')->load($enabled[$theme_id]);
+      $favicon = $this->entityTypeManager->getStorage('favicon_package')->load($enabled[$theme_id]);
     }
     return $favicon;
   }
@@ -100,5 +107,3 @@ class FaviconManager implements FaviconManagerInterface {
   }
 
 }
-
-

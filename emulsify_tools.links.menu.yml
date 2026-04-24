@@ -1,6 +1,0 @@
-entity.emulsify_tools_favicon.collection:
-  title: 'Favicons'
-  route_name: entity.emulsify_tools_favicon.collection
-  description: 'List Favicon packages'
-  parent: system.admin_structure
-  weight: 99

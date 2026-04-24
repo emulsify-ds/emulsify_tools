@@ -5,7 +5,6 @@ namespace Drupal\emulsify_tools;
 use Drupal\Core\Template\Attribute;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
-use Drupal\Component\Utility\Html;
 
 /**
  * Class DefaultService.
@@ -130,10 +129,6 @@ class BemTwigExtension extends AbstractExtension {
         }
         // Add class attribute.
         if (!empty($classes)) {
-          // Escape the css classes added to prevent security issues.
-          $classes = array_map(function($css_class) {
-            return Html::cleanCssIdentifier($css_class);
-          }, $classes);
           $attributes->setAttribute('class', $classes);
         }
         return $attributes;

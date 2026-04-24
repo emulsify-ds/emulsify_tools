@@ -1,19 +1,91 @@
 <?php
 
-use Drupal\Core\Routing\RouteMatchInterface;
+/**
+ * @file
+ * Contains emulsify_tools.module.
+ */
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Url;
+use Drupal\Core\Link;
 
 /**
- * Implements hook_help().
+ * Implements hook_form_system_theme_settings_alter().
  */
-function emulsify_tools_help($route_name, RouteMatchInterface $route_match) {
-  switch ($route_name) {
-    case 'help.page.emulsify_tools':
-      $output = '';
-      $output .= '<h3>' . t('About') . '</h3>';
-      $output .= '<p>' . t('Emulsify Tools provides helpful developer utilities, including favicon management from realfavicongenerator.net.') . '</p>';
-      return $output;
+function emulsify_tools_form_system_theme_settings_alter(&$form, FormStateInterface $form_state, $form_id = NULL) {
+  // Only add this to the global appearance settings.
+  $build_info = $form_state->getBuildInfo();
+  $theme = $build_info['args'][0] ?? '';
+  if (!empty($theme)) {
+    return;
+  }
 
-    default:
+  $form['favicon_packages_wrapper'] = [
+    '#type' => 'details',
+    '#title' => t('Favicon Packages'),
+    '#open' => TRUE,
+    '#weight' => -10,
+  ];
+
+  $add_url = Url::fromRoute('entity.favicon_package.add_form', [], ['query' => ['destination' => '/admin/appearance/settings']]);
+  $form['favicon_packages_wrapper']['add_link'] = [
+    '#type' => 'link',
+    '#title' => t('Add new Favicon Package'),
+    '#url' => $add_url,
+    '#attributes' => ['class' => ['button', 'button--primary', 'button--small']],
+  ];
+
+  // List existing packages.
+  $list_builder = \Drupal::entityTypeManager()->getListBuilder('favicon_package');
+  $form['favicon_packages_wrapper']['package_list'] = $list_builder->render();
+
+  // Mapping theme to packages.
+  $config = \Drupal::config('emulsify_tools.settings');
+  $config_themes = $config->get('themes') ?: [];
+
+  $form['favicon_packages_wrapper']['theme_mappings'] = [
+    '#type' => 'details',
+    '#title' => t('Theme Favicon Mappings'),
+    '#description' => t('Assign a favicon package to each theme.'),
+    '#open' => TRUE,
+    '#tree' => TRUE,
+  ];
+
+  $packages = \Drupal::entityTypeManager()->getStorage('favicon_package')->loadMultiple();
+  $favicon_options = [0 => t('- Use Drupal Default -')];
+  foreach ($packages as $package) {
+    $favicon_options[$package->id()] = $package->label();
+  }
+
+  $themes = \Drupal::service('theme_handler')->listInfo();
+  uasort($themes, 'Drupal\Core\Extension\ExtensionList::sortByName');
+
+  foreach ($themes as $id => $theme) {
+    if (!empty($theme->info['hidden'])) {
+      continue;
+    }
+    if (!empty($theme->status)) {
+      $form['favicon_packages_wrapper']['theme_mappings'][$id] = [
+        '#type' => 'select',
+        '#title' => t('@name Favicon', ['@name' => $theme->info['name']]),
+        '#options' => $favicon_options,
+        '#default_value' => isset($config_themes[$id]) ? $config_themes[$id] : 0,
+      ];
+    }
+  }
+
+  $form['#submit'][] = 'emulsify_tools_system_theme_settings_submit';
+}
+
+/**
+ * Submit handler for system_theme_settings.
+ */
+function emulsify_tools_system_theme_settings_submit($form, FormStateInterface $form_state) {
+  $mappings = $form_state->getValue('theme_mappings');
+  if ($mappings) {
+    \Drupal::configFactory()->getEditable('emulsify_tools.settings')
+      ->set('themes', array_filter($mappings))
+      ->save();
   }
 }
 
@@ -22,7 +94,8 @@ function emulsify_tools_help($route_name, RouteMatchInterface $route_match) {
  */
 function emulsify_tools_page_attachments_alter(array &$attachments) {
   $theme = \Drupal::theme()->getActiveTheme()->getName();
-  $faviconManager = \Drupal::service('emulsify_tools.favicon_manager');
+  /** @var \Drupal\emulsify_tools\FaviconManagerInterface $faviconManager */
+  $faviconManager = \Drupal::service('emulsify_tools.favicon.manager');
 
   if ($tags = $faviconManager->getTags($theme)) {
     // Remove default favicon from html_head_link.
@@ -56,20 +129,4 @@ function emulsify_tools_page_attachments_alter(array &$attachments) {
       'emulsify_tools_favicon',
     ];
   }
-}
-
-/**
- * Load favicon by theme.
- *
- * @param string $theme_id
- *   The theme id.
- *
- * @return \Drupal\emulsify_tools\Entity\Favicon|null
- *   The Favicon entity.
- */
-function emulsify_tools_favicon_load_by_theme($theme_id = NULL) {
-  if (empty($active_theme)) {
-    $active_theme = \Drupal::theme()->getActiveTheme()->getName();
-  }
-  return \Drupal::service('emulsify_tools.favicon_manager')->loadFavicon($active_theme);
 }

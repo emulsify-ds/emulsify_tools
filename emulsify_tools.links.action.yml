@@ -1,7 +1,0 @@
-entity.emulsify_tools_favicon.add_form:
-  route_name: 'entity.emulsify_tools_favicon.add_form'
-  title: 'Add Favicon Package'
-  appears_on:
-    - entity.emulsify_tools_favicon.collection
-
-
