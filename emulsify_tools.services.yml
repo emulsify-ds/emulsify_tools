@@ -1,11 +1,17 @@
 services:
+  emulsify_tools.filesystem:
+    class: Symfony\Component\Filesystem\Filesystem
+  emulsify_tools.twig_attribute_manager:
+    class: Drupal\emulsify_tools\TwigAttributeManager
   emulsify_tools.twig.emulsify_tools_add_attributes:
     class: Drupal\emulsify_tools\AddAttributesTwigExtension
+    arguments: ['@emulsify_tools.twig_attribute_manager']
     parent: twig.extension
     tags:
       - { name: twig.extension }
   emulsify_tools.twig.emulsify_tools_bem:
     class: Drupal\emulsify_tools\BemTwigExtension
+    arguments: ['@emulsify_tools.twig_attribute_manager']
     parent: twig.extension
     tags:
       - { name: twig.extension }
