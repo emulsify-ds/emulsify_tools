@@ -2,6 +2,10 @@
 
 This module provides two Twig extensions used in the [Emulsify Design System](https://github.com/emulsify-ds/) as well as a theme generation Drush command.
 
+## Compatibility
+
+This module now targets Drupal `11.3+`.
+
 ## Usage
 
 ---
