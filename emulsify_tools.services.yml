@@ -1,6 +1,9 @@
 services:
   emulsify_tools.filesystem:
     class: Symfony\Component\Filesystem\Filesystem
+  emulsify_tools.admin_theme_favicon_manager:
+    class: Drupal\emulsify_tools\AdminThemeFaviconManager
+    arguments: ['@router.admin_context', '@config.factory', '@file_url_generator', '@theme.manager', '@theme.settings']
   emulsify_tools.twig_attribute_manager:
     class: Drupal\emulsify_tools\TwigAttributeManager
   emulsify_tools.twig.emulsify_tools_add_attributes:
