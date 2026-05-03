@@ -41,13 +41,13 @@ final class AddAttributesTwigExtension extends AbstractExtension {
    *
    * @param array $context
    *   The Twig render context.
-   * @param array $additionalAttributes
+   * @param mixed $additionalAttributes
    *   Additional attributes to merge into the current context.
    *
    * @return \Drupal\Core\Template\Attribute
    *   A detached merged attribute collection.
    */
-  public function addAttributes(array $context, array $additionalAttributes = []): Attribute {
+  public function addAttributes(array $context, mixed $additionalAttributes = []): Attribute {
     return $this->attributeManager->mergeContextAttributes($context, $additionalAttributes);
   }
 

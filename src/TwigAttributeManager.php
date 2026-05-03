@@ -17,16 +17,16 @@ final class TwigAttributeManager {
    *
    * @param array $context
    *   The Twig render context.
-   * @param array $additionalAttributes
+   * @param mixed $additionalAttributes
    *   Additional attributes to merge onto the context attributes.
    *
    * @return \Drupal\Core\Template\Attribute
    *   The merged attribute collection.
    */
-  public function mergeContextAttributes(array $context, array $additionalAttributes = []): Attribute {
+  public function mergeContextAttributes(array $context, mixed $additionalAttributes = []): Attribute {
     $attributes = $this->consumeContextAttributes($context);
 
-    foreach ($additionalAttributes as $name => $value) {
+    foreach ($this->normalizeAttributeMap($additionalAttributes) as $name => $value) {
       $this->mergeAttribute($attributes, (string) $name, $value);
     }
 
@@ -80,6 +80,31 @@ final class TwigAttributeManager {
 
     $existingValue = $attributes->offsetGet($name)->value();
     $attributes->setAttribute($name, $this->mergeAttributeValues($name, $existingValue, $normalizedValue));
+  }
+
+  /**
+   * Normalizes arbitrary Twig input into an attribute-name map.
+   *
+   * @param mixed $attributes
+   *   The incoming Twig value.
+   *
+   * @return array
+   *   A normalized attribute map.
+   */
+  private function normalizeAttributeMap(mixed $attributes): array {
+    if ($attributes instanceof Attribute) {
+      return $attributes->toArray();
+    }
+
+    if (is_array($attributes)) {
+      return $attributes;
+    }
+
+    if (is_object($attributes)) {
+      return (array) $attributes;
+    }
+
+    return [];
   }
 
   /**

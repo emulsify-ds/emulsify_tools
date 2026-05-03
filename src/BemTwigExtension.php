@@ -41,13 +41,13 @@ final class BemTwigExtension extends AbstractExtension {
    *
    * @param array $context
    *   The Twig render context.
-   * @param array|object|string $baseClass
+   * @param mixed $baseClass
    *   A base class string or a configuration object/array.
-   * @param array|string $modifiers
+   * @param mixed $modifiers
    *   Optional BEM modifiers.
-   * @param string $blockname
+   * @param mixed $blockname
    *   Optional BEM block name.
-   * @param array|string $extra
+   * @param mixed $extra
    *   Optional extra classes.
    *
    * @return \Drupal\Core\Template\Attribute
@@ -55,10 +55,10 @@ final class BemTwigExtension extends AbstractExtension {
    */
   public function bem(
     array $context,
-    array|object|string $baseClass,
-    array|string $modifiers = [],
-    string $blockname = '',
-    array|string $extra = [],
+    mixed $baseClass,
+    mixed $modifiers = [],
+    mixed $blockname = '',
+    mixed $extra = [],
   ): Attribute {
     [$resolvedBaseClass, $resolvedModifiers, $resolvedBlockName, $resolvedExtra] = $this->resolveArguments(
       $baseClass,
@@ -76,23 +76,23 @@ final class BemTwigExtension extends AbstractExtension {
   /**
    * Resolves positional or object-style bem() arguments.
    *
-   * @param array|object|string $baseClass
+   * @param mixed $baseClass
    *   A base class string or a configuration object/array.
-   * @param array|string $modifiers
+   * @param mixed $modifiers
    *   Optional BEM modifiers.
-   * @param string $blockName
+   * @param mixed $blockName
    *   Optional BEM block name.
-   * @param array|string $extra
+   * @param mixed $extra
    *   Optional extra classes.
    *
    * @return array
    *   The resolved arguments in base, modifiers, blockname, extra order.
    */
   private function resolveArguments(
-    array|object|string $baseClass,
-    array|string $modifiers,
-    string $blockName,
-    array|string $extra,
+    mixed $baseClass,
+    mixed $modifiers,
+    mixed $blockName,
+    mixed $extra,
   ): array {
     if (is_array($baseClass) || is_object($baseClass)) {
       $configuration = (array) $baseClass;
@@ -106,9 +106,9 @@ final class BemTwigExtension extends AbstractExtension {
     }
 
     return [
-      trim($baseClass),
+      $this->normalizeString($baseClass),
       $this->normalizeStringList($modifiers),
-      trim($blockName),
+      $this->normalizeString($blockName),
       $this->normalizeStringList($extra),
     ];
   }
@@ -145,13 +145,13 @@ final class BemTwigExtension extends AbstractExtension {
   /**
    * Normalizes a class list into trimmed strings.
    *
-   * @param array|string $values
+   * @param mixed $values
    *   The incoming values.
    *
    * @return string[]
    *   The normalized list.
    */
-  private function normalizeStringList(array|string $values): array {
+  private function normalizeStringList(mixed $values): array {
     if (!is_array($values)) {
       $values = [$values];
     }
@@ -171,6 +171,17 @@ final class BemTwigExtension extends AbstractExtension {
     }
 
     return $normalizedValues;
+  }
+
+  /**
+   * Normalizes a possibly-null scalar-ish value into a trimmed string.
+   */
+  private function normalizeString(mixed $value): string {
+    if (!is_scalar($value) && !$value instanceof \Stringable) {
+      return '';
+    }
+
+    return trim((string) $value);
   }
 
 }
