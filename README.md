@@ -1,6 +1,6 @@
 # Emulsify Tools module
 
-This module provides two Twig extensions used in the [Emulsify Design System](https://github.com/emulsify-ds/) as well as a theme generation Drush command.
+This module provides Emulsify Twig extensions, theme-defined Twig namespaces, and a theme generation Drush command.
 
 ## Compatibility
 
@@ -17,6 +17,34 @@ The bundled Drush command follows the Drush 13+ autowiring pattern.
 `drush emulsify_tools:bake [theme_name]`
 
 `drush emulsify [theme_name]`
+
+### Twig Namespaces
+
+Emulsify themes can register Symfony-style Twig namespaces in their `.info.yml`
+file using the same `components.namespaces` structure supported by the
+Components module:
+
+```yaml
+components:
+  namespaces:
+    atoms: components/01-atoms
+    molecules:
+      - components/02-molecules
+      - src/components/molecules
+    vendor_components: /../vendor/acme/components
+```
+
+Relative paths are resolved from the theme directory. Paths starting with `/`
+are resolved from the Drupal app root. Namespaces are searched in this order:
+
+1. Active theme
+2. Active theme base themes
+3. Default frontend theme, if the active theme is different
+
+Templates can then be referenced with standard Twig namespace syntax such as
+`@atoms/button/button.twig`. Nested component templates are also registered
+by basename, so `@atoms/button.twig` will resolve when the file is uniquely
+named within the namespace.
 
 ### BEM Twig Extension
 

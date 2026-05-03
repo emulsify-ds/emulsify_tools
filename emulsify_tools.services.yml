@@ -4,6 +4,14 @@ services:
   Drupal\emulsify_tools\AdminThemeFaviconManager:
     class: Drupal\emulsify_tools\AdminThemeFaviconManager
     autowire: true
+  Drupal\emulsify_tools\Twig\ThemeNamespaceRegistry:
+    class: Drupal\emulsify_tools\Twig\ThemeNamespaceRegistry
+    autowire: true
+  Drupal\emulsify_tools\Twig\Loader\ThemeNamespaceLoader:
+    class: Drupal\emulsify_tools\Twig\Loader\ThemeNamespaceLoader
+    autowire: true
+    tags:
+      - { name: twig.loader, priority: 200 }
   emulsify_tools.admin_theme_favicon_manager:
     alias: Drupal\emulsify_tools\AdminThemeFaviconManager
   emulsify_tools.twig_attribute_manager:
@@ -11,13 +19,11 @@ services:
   emulsify_tools.twig.emulsify_tools_add_attributes:
     class: Drupal\emulsify_tools\AddAttributesTwigExtension
     arguments: ['@emulsify_tools.twig_attribute_manager']
-    parent: twig.extension
     tags:
       - { name: twig.extension }
   emulsify_tools.twig.emulsify_tools_bem:
     class: Drupal\emulsify_tools\BemTwigExtension
     arguments: ['@emulsify_tools.twig_attribute_manager']
-    parent: twig.extension
     tags:
       - { name: twig.extension }
   emulsify_tools.subtheme_generator:
