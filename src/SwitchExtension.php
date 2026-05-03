@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\emulsify_tools;
 
 use Twig\Extension\AbstractExtension;
@@ -7,12 +9,12 @@ use Twig\Extension\AbstractExtension;
 /**
  * Creates a new switch case extension for Twig.
  */
-class SwitchExtension extends AbstractExtension {
+final class SwitchExtension extends AbstractExtension {
 
   /**
-   * Gets token parsers.
+   * {@inheritdoc}
    */
-  public function getTokenParsers() {
+  public function getTokenParsers(): array {
     return [
       new SwitchTokenParser(),
     ];

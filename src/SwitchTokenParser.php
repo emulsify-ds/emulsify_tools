@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\emulsify_tools;
 
 use Twig\Error\SyntaxError;
@@ -12,7 +14,7 @@ use Twig\TokenParser\AbstractTokenParser;
  *
  * @see https://github.com/craftcms/cms.
  */
-class SwitchTokenParser extends AbstractTokenParser {
+final class SwitchTokenParser extends AbstractTokenParser {
 
   /**
    * {@inheritdoc}
@@ -36,7 +38,7 @@ class SwitchTokenParser extends AbstractTokenParser {
     $stream->expect(Token::BLOCK_END_TYPE);
 
     // Trim whitespace between the {% switch %} and first {% case %} tag.
-    while ($stream->getCurrent()->getType() == Token::TEXT_TYPE && trim($stream->getCurrent()->getValue()) === '') {
+    while ($stream->getCurrent()->getType() === Token::TEXT_TYPE && trim($stream->getCurrent()->getValue()) === '') {
       $stream->next();
     }
 
@@ -80,7 +82,7 @@ class SwitchTokenParser extends AbstractTokenParser {
           break;
 
         default:
-          throw new SyntaxError(sprintf('Unexpected end of template. Twig was looking for the following tags "case", "default", or "endswitch" to close the "switch" block started at line %d)', $lineno), -1);
+		throw new SyntaxError(sprintf('Unexpected tag "%s". Twig was looking for "case", "default", or "endswitch" to close the "switch" block started on line %d.', $next->getValue(), $lineno), $lineno);
       }
     }
 
@@ -94,7 +96,7 @@ class SwitchTokenParser extends AbstractTokenParser {
   /**
    * Decide IF Fork.
    *
-   * @param Twig\Token $token
+   * @param \Twig\Token $token
    *   The token to parse.
    *
    * @return bool
@@ -107,7 +109,7 @@ class SwitchTokenParser extends AbstractTokenParser {
   /**
    * Decides if end of switch statement.
    *
-   * @param Twig\Token $token
+   * @param \Twig\Token $token
    *   The token to parse.
    *
    * @return bool

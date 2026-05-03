@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\emulsify_tools;
 
 use Twig\Compiler;
@@ -10,7 +12,7 @@ use Twig\Node\Node;
  *
  * @see https://github.com/craftcms/cms.
  */
-class SwitchNode extends Node {
+final class SwitchNode extends Node {
 
   /**
    * {@inheritdoc}
