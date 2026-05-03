@@ -9,7 +9,7 @@ use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
 
 /**
- * The emulsify subtheme generator.
+ * Generates Emulsify sub-themes.
  */
 final class SubThemeGenerator {
 
@@ -64,7 +64,7 @@ final class SubThemeGenerator {
 
     foreach ($finder as $fileInfo) {
       if ($fileInfo instanceof SplFileInfo) {
-		return basename($fileInfo->getFilename(), '.info.emulsify.yml');
+        return basename($fileInfo->getFilename(), '.info.emulsify.yml');
       }
     }
 
@@ -85,7 +85,7 @@ final class SubThemeGenerator {
     foreach ($this->getFileNamesToRename($directory, $originalMachineName) as $fileName) {
       $newFileName = str_replace($originalMachineName, $newMachineName, $fileName);
       if (str_contains($newFileName, '.emulsify.')) {
-		$newFileName = str_replace('.emulsify.', '.', $newFileName);
+        $newFileName = str_replace('.emulsify.', '.', $newFileName);
       }
       $this->filesystem->rename($fileName, $newFileName);
     }
@@ -207,7 +207,7 @@ final class SubThemeGenerator {
    *   The theme directory.
    *
    * @return string[]
-   *   An array of files to me replacements on.
+   *   An array of files to make replacements on.
    */
   private function getFilesToMakeReplacements(string $directory): array {
     $fileNames = [];

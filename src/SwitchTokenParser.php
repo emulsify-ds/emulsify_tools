@@ -10,7 +10,9 @@ use Twig\Token;
 use Twig\TokenParser\AbstractTokenParser;
 
 /**
- * Class SwitchTokenParser that parses {% switch %} tags. Based on Craft CMS.
+ * Parses Twig switch/case tags.
+ *
+ * Based on Craft CMS.
  *
  * @see https://github.com/craftcms/cms.
  */
@@ -82,7 +84,7 @@ final class SwitchTokenParser extends AbstractTokenParser {
           break;
 
         default:
-		throw new SyntaxError(sprintf('Unexpected tag "%s". Twig was looking for "case", "default", or "endswitch" to close the "switch" block started on line %d.', $next->getValue(), $lineno), $lineno);
+          throw new SyntaxError(sprintf('Unexpected tag "%s". Twig was looking for "case", "default", or "endswitch" to close the "switch" block started on line %d.', $next->getValue(), $lineno), $lineno);
       }
     }
 

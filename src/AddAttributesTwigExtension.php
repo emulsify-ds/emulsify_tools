@@ -31,7 +31,7 @@ final class AddAttributesTwigExtension extends AbstractExtension {
       new TwigFunction(
         'add_attributes',
         [$this, 'addAttributes'],
-		['needs_context' => TRUE, 'is_safe' => ['html']],
+        ['needs_context' => TRUE, 'is_safe' => ['html']],
       ),
     ];
   }

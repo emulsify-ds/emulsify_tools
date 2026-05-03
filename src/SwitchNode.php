@@ -8,7 +8,9 @@ use Twig\Compiler;
 use Twig\Node\Node;
 
 /**
- * Class SwitchNode. Based on Craft CMS.
+ * Compiles Twig switch/case nodes.
+ *
+ * Based on Craft CMS.
  *
  * @see https://github.com/craftcms/cms.
  */
@@ -26,7 +28,7 @@ final class SwitchNode extends Node {
       ->indent();
 
     foreach ($this->getNode('cases') as $case) {
-      /** @var Twig\Node\Node $case */
+      /** @var \Twig\Node\Node $case */
       /* The 'body' node may have been removed by Twig if it was an empty text
        * node in a sub-template, outside of any blocks.
        */

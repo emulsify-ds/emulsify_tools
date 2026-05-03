@@ -31,7 +31,7 @@ final class BemTwigExtension extends AbstractExtension {
       new TwigFunction(
         'bem',
         [$this, 'bem'],
-		['needs_context' => TRUE, 'is_safe' => ['html']],
+        ['needs_context' => TRUE, 'is_safe' => ['html']],
       ),
     ];
   }
@@ -98,10 +98,10 @@ final class BemTwigExtension extends AbstractExtension {
       $configuration = (array) $baseClass;
 
       return [
-		(string) ($configuration['block'] ?? $configuration['base_class'] ?? ''),
-		$this->normalizeStringList($configuration['modifiers'] ?? []),
-		(string) ($configuration['element'] ?? $configuration['blockname'] ?? ''),
-		$this->normalizeStringList($configuration['extra'] ?? []),
+        (string) ($configuration['block'] ?? $configuration['base_class'] ?? ''),
+        $this->normalizeStringList($configuration['modifiers'] ?? []),
+        (string) ($configuration['element'] ?? $configuration['blockname'] ?? ''),
+        $this->normalizeStringList($configuration['extra'] ?? []),
       ];
     }
 
@@ -135,7 +135,7 @@ final class BemTwigExtension extends AbstractExtension {
     if ($bemBaseClass !== '') {
       $classes[] = $bemBaseClass;
       foreach ($modifiers as $modifier) {
-		$classes[] = $bemBaseClass . '--' . $modifier;
+        $classes[] = $bemBaseClass . '--' . $modifier;
       }
     }
 
@@ -159,12 +159,12 @@ final class BemTwigExtension extends AbstractExtension {
     $normalizedValues = [];
     foreach ($values as $value) {
       if (!is_scalar($value) && !$value instanceof \Stringable) {
-		continue;
+        continue;
       }
 
       $stringValue = trim((string) $value);
       if ($stringValue === '') {
-		continue;
+        continue;
       }
 
       $normalizedValues[] = $stringValue;
