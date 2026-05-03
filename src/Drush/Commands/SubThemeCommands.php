@@ -1,12 +1,11 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Drupal\emulsify_tools\Drush\Commands;
 
 use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Archiver\ArchiverManager;
-use Drupal\Core\DependencyInjection\AutowireTrait;
 use Drupal\Core\Extension\ThemeExtensionList;
 use Drupal\emulsify_tools\SubThemeGenerator;
 use Drush\Attributes as CLI;
@@ -16,77 +15,38 @@ use Robo\State\Data as RoboStateData;
 use Robo\Task\Archive\Tasks as ArchiveTaskLoader;
 use Robo\Task\Filesystem\Tasks as FilesystemTaskLoader;
 use Robo\TaskAccessor;
-use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
+use Symfony\Component\Finder\SplFileInfo;
 
 /**
  * A Drush commandfile.
- *
- * In addition to this file, you need a drush.services.yml
- * in root of your module, and a composer.json file that provides the name
- * of the services file to use.
  */
-class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
+final class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
 
   use TaskAccessor;
   use ArchiveTaskLoader;
   use FilesystemTaskLoader;
-  use AutowireTrait;
 
   /**
-   * The emulsify subtheme generator.
+   * Creates the command service.
    *
-   * @var \Drupal\emulsify_tools\SubThemeGenerator
-   */
-  protected $subThemeGenerator;
-
-  /**
-   * The filesystem.
-   *
-   * @var \Symfony\Component\Filesystem\Filesystem
-   */
-  protected $fs;
-
-  /**
-   * The theme extension list.
-   *
-   * @var \Drupal\Core\Extension\ThemeExtensionList
-   */
-  protected $themeExtensionList;
-
-  /**
-   * The plugin manager archiver.
-   *
-   * @var \Drupal\Core\Archiver\ArchiverManager
-   */
-  protected $archiverManager;
-
-  /**
-   * {@inheritdoc}
+   * @param \Drupal\Core\Extension\ThemeExtensionList $themeExtensionList
+   *   The theme extension list service.
+   * @param \Drupal\Core\Archiver\ArchiverManager $archiverManager
+   *   The archiver manager.
+   * @param \Drupal\emulsify_tools\SubThemeGenerator $subThemeGenerator
+   *   The sub-theme generator.
+   * @param \Symfony\Component\Filesystem\Filesystem $filesystem
+   *   The Symfony filesystem helper.
    */
   public function __construct(
-    ThemeExtensionList $themeExtensionList,
-    ArchiverManager $archiverManager,
-    SubThemeGenerator $subThemeGenerator,
-    ) {
-    $this->themeExtensionList = $themeExtensionList;
-    $this->archiverManager = $archiverManager;
-    $this->subThemeGenerator = $subThemeGenerator;
-    $this->fs = new Filesystem();
-
+    private readonly ThemeExtensionList $themeExtensionList,
+    private readonly ArchiverManager $archiverManager,
+    private readonly SubThemeGenerator $subThemeGenerator,
+    private readonly Filesystem $filesystem,
+  ) {
     parent::__construct();
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public static function create(ContainerInterface $container) {
-    return new static(
-      $container->get('extension.list.theme'),
-      $container->get('plugin.manager.archiver'),
-      $container->get('emulsify_tools.subtheme_generator'),
-    );
   }
 
   /**
@@ -95,120 +55,24 @@ class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
   #[CLI\Command(name: 'emulsify_tools:bake', aliases: ['emulsify'])]
   #[CLI\Argument(name: 'name', description: 'The name of your emulsify based subtheme.')]
   #[CLI\Usage(name: 'emulsify_tools:bake MyThemeName')]
-  public function generateSubTheme(
-    string $name,
-  ) {
+  public function generateSubTheme(string $name) {
     $machineName = $this->convertLabelToMachineName($name);
-    $emulsifyDir = $this->themeExtensionList->getPath('emulsify');
-    $srcDir = $emulsifyDir . "/whisk";
-    $dstDir = "themes/custom/{$machineName}";
+    $sourceDirectory = $this->getStarterRecipeDirectory();
+    $destinationDirectory = "themes/custom/{$machineName}";
 
-    $cb = $this->collectionBuilder();
-    $cb->getState()->offsetSet('srcDir', $srcDir);
-    $cb->addTask($this->taskTmpDir());
+    $builder = $this->collectionBuilder();
+    $builder->getState()->offsetSet('srcDir', $sourceDirectory);
+    $builder->addTask($this->taskTmpDir());
 
-    if (UrlHelper::isValid($srcDir, TRUE)) {
-      $cb->addCode(function (RoboStateData $data) use ($srcDir): int {
-        $logger = $this->logger();
-        $logger->debug(
-          'download Emulsify recipe from <info>{$srcDir}</info>',
-          [
-            'recipeUrl' => $srcDir,
-          ]
-        );
-
-        $fileName = $this->getFileNameFromUrl($srcDir);
-        $packDir = "{$data['path']}/pack";
-        $data['packPath'] = "$packDir/$fileName";
-
-        try {
-          $this->fs->mkdir($packDir);
-          $this->fs->copy($srcDir, $data['packPath']);
-        }
-        catch (\Exception $e) {
-          $logger->error($e->getMessage());
-
-          return 1;
-        }
-
-        return 0;
-      });
-
-      $cb->addCode(function (RoboStateData $data): int {
-        $logger = $this->logger();
-        $logger->debug(
-          'extract downloaded Emulsify starter recipe from <info>{packPath}</info> to <info>{srcDir}</info>',
-          [
-            'packPath' => $data['packPath'],
-            'srcDir' => $data['srcDir'],
-          ]
-        );
-
-        $data['srcDir'] = "{$data['path']}/recipe";
-
-        try {
-          /** @var \Drupal\Core\Archiver\ArchiverInterface $extractorInstance */
-          $extractorInstance = $this->archiverManager->getInstance(['filepath' => $data['packPath']]);
-          $extractorInstance->extract($data['srcDir']);
-        }
-        catch (\Exception $e) {
-          $this->logger()->error($e->getMessage());
-
-          return 1;
-        }
-
-        $topLevelDir = $this->getTopLevelDir($data['srcDir']);
-        if ($topLevelDir) {
-          $data['srcDir'] = $topLevelDir;
-        }
-
-        return 0;
-      });
+    if (UrlHelper::isValid($sourceDirectory, TRUE)) {
+      $builder->addCode(fn (RoboStateData $data): int => $this->downloadStarterRecipe($data, $sourceDirectory));
+      $builder->addCode(fn (RoboStateData $data): int => $this->extractStarterRecipe($data));
     }
 
-    $cb->addCode(function (RoboStateData $data) use ($dstDir): int {
-      $logger = $this->logger();
-      $logger->debug(
-        'copy Emulsify starter recipe from <info>{srcDir}</info> to <info>{dstDir}</info>',
-        [
-          'srcDir' => $data['srcDir'],
-          'dstDir' => $dstDir,
-        ]
-      );
+    $builder->addCode(fn (RoboStateData $data): int => $this->copyStarterRecipe($data, $destinationDirectory));
+    $builder->addCode(fn (): int => $this->customizeStarterRecipe($name, $machineName, $destinationDirectory));
 
-      try {
-        $this->fs->mirror($data['srcDir'], $dstDir);
-      }
-      catch (\Exception $e) {
-        $this->logger()->error($e->getMessage());
-
-        return 1;
-      }
-
-      return 0;
-    });
-
-    $cb->addCode(function () use ($name, $dstDir): int {
-      $logger = $this->logger();
-      $machineName = $this->convertLabelToMachineName($name);
-      $logger->debug(
-        'customize Emulsify starter recipe in <info>{dstDir}</info> directory',
-        [
-          'dstDir' => $dstDir,
-        ]
-      );
-
-      $this
-        ->subThemeGenerator
-        ->setDir($dstDir)
-        ->setMachineName($machineName)
-        ->setName($name)
-        ->generate();
-
-      return 0;
-    });
-
-    return $cb;
+    return $builder;
   }
 
   /**
@@ -220,8 +84,164 @@ class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
    * @return string
    *   The machine name.
    */
-  protected function convertLabelToMachineName(string $label): string {
-    return mb_strtolower(preg_replace('/[^a-z0-9_]+/ui', '_', $label));
+  private function convertLabelToMachineName(string $label): string {
+    $machineName = preg_replace('/[^a-z0-9_]+/ui', '_', $label);
+    if ($machineName === NULL) {
+      throw new \RuntimeException(sprintf('Unable to convert "%s" to a machine name.', $label));
+    }
+
+    $machineName = trim(mb_strtolower($machineName), '_');
+    if ($machineName === '') {
+      throw new \InvalidArgumentException('Theme name must contain at least one alphanumeric character.');
+    }
+
+    return $machineName;
+  }
+
+  /**
+   * Resolves the Emulsify starter recipe directory.
+   *
+   * @return string
+   *   The starter recipe directory.
+   */
+  private function getStarterRecipeDirectory(): string {
+    $emulsifyDirectory = $this->themeExtensionList->getPath('emulsify');
+    if ($emulsifyDirectory === '') {
+      throw new \RuntimeException('The Emulsify base theme could not be found.');
+    }
+
+    return $emulsifyDirectory . '/whisk';
+  }
+
+  /**
+   * Downloads a remote starter recipe archive.
+   *
+   * @param \Robo\State\Data $data
+   *   The Robo state bag.
+   * @param string $sourceDirectory
+   *   The remote archive URL.
+   *
+   * @return int
+   *   Zero on success, non-zero on failure.
+   */
+  private function downloadStarterRecipe(RoboStateData $data, string $sourceDirectory): int {
+    $this->logger()->debug(
+      'download Emulsify recipe from <info>{recipeUrl}</info>',
+      ['recipeUrl' => $sourceDirectory],
+    );
+
+    $fileName = $this->getFileNameFromUrl($sourceDirectory);
+    $packageDirectory = "{$data['path']}/pack";
+    $data['packPath'] = "{$packageDirectory}/{$fileName}";
+
+    try {
+      $this->filesystem->mkdir($packageDirectory);
+      $this->filesystem->copy($sourceDirectory, $data['packPath']);
+    }
+    catch (\Exception $exception) {
+      $this->logger()->error($exception->getMessage());
+      return 1;
+    }
+
+    return 0;
+  }
+
+  /**
+   * Extracts a downloaded starter recipe archive.
+   *
+   * @param \Robo\State\Data $data
+   *   The Robo state bag.
+   *
+   * @return int
+   *   Zero on success, non-zero on failure.
+   */
+  private function extractStarterRecipe(RoboStateData $data): int {
+    $this->logger()->debug(
+      'extract downloaded Emulsify starter recipe from <info>{packPath}</info> to <info>{srcDir}</info>',
+      [
+		'packPath' => $data['packPath'],
+		'srcDir' => "{$data['path']}/recipe",
+      ],
+    );
+
+    $data['srcDir'] = "{$data['path']}/recipe";
+
+    try {
+      /** @var \Drupal\Core\Archiver\ArchiverInterface $extractorInstance */
+      $extractorInstance = $this->archiverManager->getInstance(['filepath' => $data['packPath']]);
+      $extractorInstance->extract($data['srcDir']);
+    }
+    catch (\Exception $exception) {
+      $this->logger()->error($exception->getMessage());
+      return 1;
+    }
+
+    $topLevelDirectory = $this->getTopLevelDirectory($data['srcDir']);
+    if ($topLevelDirectory !== '') {
+      $data['srcDir'] = $topLevelDirectory;
+    }
+
+    return 0;
+  }
+
+  /**
+   * Copies the starter recipe into the destination theme directory.
+   *
+   * @param \Robo\State\Data $data
+   *   The Robo state bag.
+   * @param string $destinationDirectory
+   *   The destination directory.
+   *
+   * @return int
+   *   Zero on success, non-zero on failure.
+   */
+  private function copyStarterRecipe(RoboStateData $data, string $destinationDirectory): int {
+    $this->logger()->debug(
+      'copy Emulsify starter recipe from <info>{srcDir}</info> to <info>{dstDir}</info>',
+      [
+		'srcDir' => $data['srcDir'],
+		'dstDir' => $destinationDirectory,
+      ],
+    );
+
+    if ($this->filesystem->exists($destinationDirectory)) {
+      $this->logger()->error(sprintf('Destination directory "%s" already exists.', $destinationDirectory));
+      return 1;
+    }
+
+    try {
+      $this->filesystem->mirror($data['srcDir'], $destinationDirectory);
+    }
+    catch (\Exception $exception) {
+      $this->logger()->error($exception->getMessage());
+      return 1;
+    }
+
+    return 0;
+  }
+
+  /**
+   * Applies Emulsify-specific replacements to the copied starter recipe.
+   *
+   * @param string $name
+   *   The theme label.
+   * @param string $machineName
+   *   The theme machine name.
+   * @param string $destinationDirectory
+   *   The copied destination directory.
+   *
+   * @return int
+   *   Zero on success.
+   */
+  private function customizeStarterRecipe(string $name, string $machineName, string $destinationDirectory): int {
+    $this->logger()->debug(
+      'customize Emulsify starter recipe in <info>{dstDir}</info> directory',
+      ['dstDir' => $destinationDirectory],
+    );
+
+    $this->subThemeGenerator->generate($destinationDirectory, $machineName, $name);
+
+    return 0;
   }
 
   /**
@@ -230,10 +250,10 @@ class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
    * @return \Symfony\Component\Finder\Finder
    *   The finder.
    */
-  protected function getDirectDescendants(string $dir): Finder {
+  private function getDirectDescendants(string $dir): Finder {
     return (new Finder())
       ->in($dir)
-      ->depth('0');
+      ->depth('== 0');
   }
 
   /**
@@ -245,8 +265,9 @@ class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
    * @return string
    *   The file name.
    */
-  protected function getFileNameFromUrl(string $url): string {
-    return pathinfo(parse_url($url, PHP_URL_PATH), PATHINFO_BASENAME);
+  private function getFileNameFromUrl(string $url): string {
+    $path = parse_url($url, PHP_URL_PATH);
+    return pathinfo(is_string($path) ? $path : '', PATHINFO_BASENAME);
   }
 
   /**
@@ -258,13 +279,16 @@ class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
    * @return string
    *   The top level directory.
    */
-  protected function getTopLevelDir(string $parentDir): string {
+  private function getTopLevelDirectory(string $parentDir): string {
     $directDescendants = $this->getDirectDescendants($parentDir);
+    if ($directDescendants->count() !== 1) {
+      return '';
+    }
+
     $iterator = $directDescendants->getIterator();
     $iterator->rewind();
-    /** @var \Symfony\Component\Finder\SplFileInfo $firstFile */
     $firstFile = $iterator->current();
-    if ($directDescendants->count() === 1 && $firstFile->isDir()) {
+    if ($firstFile instanceof SplFileInfo && $firstFile->isDir()) {
       return $firstFile->getPathname();
     }
 
