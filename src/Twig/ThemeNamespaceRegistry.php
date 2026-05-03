@@ -51,6 +51,13 @@ final class ThemeNamespaceRegistry {
   private array $warnedNamespaces = [];
 
   /**
+   * Protected default namespaces keyed by namespace.
+   *
+   * @var array<string, array{name: string, type: string}>|null
+   */
+  private ?array $protectedNamespaces = NULL;
+
+  /**
    * Creates the registry.
    */
   public function __construct(
@@ -316,18 +323,81 @@ final class ThemeNamespaceRegistry {
   }
 
   /**
-   * Returns whether the namespace would shadow a default Drupal namespace.
+   * Returns protected default namespaces keyed by namespace.
+   *
+   * @return array<string, array{name: string, type: string}>
+   *   Protected default namespace owner metadata.
+   */
+  private function getProtectedNamespaces(): array {
+    return $this->protectedNamespaces ??= $this->buildProtectedNamespaces();
+  }
+
+  /**
+   * Builds protected default namespaces for installed modules and themes.
+   *
+   * Extensions may opt into reuse of their default namespace via
+   * `components.allow_default_namespace_reuse` or by defining a matching
+   * default namespace under `components.namespaces`.
+   *
+   * @return array<string, array{name: string, type: string}>
+   *   Protected default namespace owner metadata.
+   */
+  private function buildProtectedNamespaces(): array {
+    $protectedNamespaces = [];
+
+    foreach ($this->moduleExtensionList->getList() as $extensionName => $extension) {
+      if (!$extension instanceof Extension || $this->allowsDefaultNamespaceReuse($extension)) {
+        continue;
+      }
+
+      $protectedNamespaces[$extensionName] = [
+        'name' => (string) ($extension->info['name'] ?? $extensionName),
+        'type' => 'module',
+      ];
+    }
+
+    // Themes win ties to match Drupal's existing namespace precedence.
+    foreach ($this->themeExtensionList->getList() as $extensionName => $extension) {
+      if (!$extension instanceof Extension || $this->allowsDefaultNamespaceReuse($extension)) {
+        continue;
+      }
+
+      $protectedNamespaces[$extensionName] = [
+        'name' => (string) ($extension->info['name'] ?? $extensionName),
+        'type' => 'theme',
+      ];
+    }
+
+    return $protectedNamespaces;
+  }
+
+  /**
+   * Returns whether an extension allows reuse of its default namespace.
+   */
+  private function allowsDefaultNamespaceReuse(Extension $extension): bool {
+    $components = $extension->info['components'] ?? NULL;
+    if (!is_array($components)) {
+      return FALSE;
+    }
+
+    // Mirror drupal/components, where presence of the key opts in.
+    if (array_key_exists('allow_default_namespace_reuse', $components)) {
+      return TRUE;
+    }
+
+    $definitions = $components['namespaces'] ?? NULL;
+    return is_array($definitions) && !empty($definitions[$extension->getName()]);
+  }
+
+  /**
+   * Returns whether the namespace would shadow a protected default namespace.
    */
   private function isProtectedNamespace(string $namespace, string $definingThemeName): bool {
     if ($namespace === $definingThemeName) {
       return FALSE;
     }
 
-    if (isset($this->themeExtensionList->getList()[$namespace])) {
-      return TRUE;
-    }
-
-    return isset($this->moduleExtensionList->getList()[$namespace]);
+    return isset($this->getProtectedNamespaces()[$namespace]);
   }
 
   /**
@@ -375,14 +445,9 @@ final class ThemeNamespaceRegistry {
    *   The owner type and human-readable name.
    */
   private function getProtectedNamespaceOwner(string $namespace): array {
-    $theme = $this->themeExtensionList->getList()[$namespace] ?? NULL;
-    if ($theme instanceof Extension) {
-      return ['theme', (string) ($theme->info['name'] ?? $namespace)];
-    }
-
-    $module = $this->moduleExtensionList->getList()[$namespace] ?? NULL;
-    if ($module instanceof Extension) {
-      return ['module', (string) ($module->info['name'] ?? $namespace)];
+    $owner = $this->getProtectedNamespaces()[$namespace] ?? NULL;
+    if (is_array($owner)) {
+      return [$owner['type'], $owner['name']];
     }
 
     return ['extension', $namespace];
