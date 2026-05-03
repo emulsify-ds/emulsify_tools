@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\emulsify_tools;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Extension\ThemeExtensionList;
 use Drupal\Core\Extension\ThemeSettingsProvider;
 use Drupal\Core\File\FileUrlGeneratorInterface;
 use Drupal\Core\Routing\AdminContext;
@@ -14,6 +15,11 @@ use Drupal\Core\Theme\ThemeManagerInterface;
  * Applies Emulsify-generated favicon packages to admin pages when requested.
  */
 final class AdminThemeFaviconManager {
+
+  /**
+   * The Emulsify base theme machine name.
+   */
+  private const EMULSIFY_THEME = 'emulsify';
 
   /**
    * The module config name.
@@ -34,13 +40,39 @@ final class AdminThemeFaviconManager {
     private readonly FileUrlGeneratorInterface $fileUrlGenerator,
     private readonly ThemeManagerInterface $themeManager,
     private readonly ThemeSettingsProvider $themeSettingsProvider,
+    private readonly ThemeExtensionList $themeExtensionList,
   ) {}
 
   /**
    * Returns whether the admin-theme override is enabled for a theme.
    */
   public function isEnabledForTheme(string $themeName): bool {
+    if (!$this->supportsTheme($themeName)) {
+      return FALSE;
+    }
+
     return in_array($themeName, $this->getEnabledThemes(), TRUE);
+  }
+
+  /**
+   * Returns whether a theme can use the Emulsify admin favicon override.
+   */
+  public function supportsTheme(string $themeName): bool {
+    $themeName = trim($themeName);
+    if ($themeName === '') {
+      return FALSE;
+    }
+
+    if ($themeName === self::EMULSIFY_THEME) {
+      return TRUE;
+    }
+
+    $theme = $this->themeExtensionList->getList()[$themeName] ?? NULL;
+    if ($theme === NULL) {
+      return FALSE;
+    }
+
+    return isset($theme->base_themes[self::EMULSIFY_THEME]);
   }
 
   /**
@@ -50,6 +82,18 @@ final class AdminThemeFaviconManager {
     $enabledThemes = $this->getEnabledThemes();
     $themeName = trim($themeName);
     if ($themeName === '') {
+      return;
+    }
+
+    if (!$this->supportsTheme($themeName)) {
+      $enabledThemes = array_values(array_filter(
+        $enabledThemes,
+        static fn (string $enabledTheme): bool => $enabledTheme !== $themeName,
+      ));
+      $this->configFactory
+        ->getEditable(self::CONFIG_NAME)
+        ->set(self::ENABLED_THEMES_KEY, $enabledThemes)
+        ->save();
       return;
     }
 
@@ -83,7 +127,7 @@ final class AdminThemeFaviconManager {
     }
 
     $frontendTheme = $this->getDefaultFrontendTheme();
-    if ($frontendTheme === '' || !$this->isEnabledForTheme($frontendTheme)) {
+    if ($frontendTheme === '' || !$this->supportsTheme($frontendTheme) || !$this->isEnabledForTheme($frontendTheme)) {
       return;
     }
 
