@@ -1,18 +1,17 @@
 {
-    "name": "emulsify-ds/emulsify_tools",
-    "description": "Provides Twig functions and subtheme generation for use with Emulsify",
-    "type": "drupal-module",
-    "require": {
-		"drupal/core": "^10.6 || ^11.3"
-    },
-    "homepage": "http://emulsify.info",
-    "license": "GPL-2.0-only",
-    "repositories": {
-        "drupal": {
-            "type": "composer",
-            "url": "https://packages.drupal.org/8"
-        }
-    },
-    "minimum-stability": "dev",
-    "prefer-stable": true
+  "name": "emulsify-ds/emulsify_tools",
+  "description": "Provides Twig functions and subtheme generation for use with Emulsify",
+  "type": "drupal-module",
+  "homepage": "https://emulsify.info",
+  "license": "GPL-2.0-only",
+  "require": {
+    "php": ">=8.3",
+    "drupal/core": "^11.3"
+  },
+  "conflict": {
+    "drush/drush": "<13.0"
+  },
+  "suggest": {
+    "drush/drush": "Install Drush 13+ to use the emulsify_tools:bake command."
+  }
 }

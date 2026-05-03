@@ -6,6 +6,8 @@ This module provides two Twig extensions used in the [Emulsify Design System](ht
 
 This module now targets Drupal `11.3+`.
 
+The bundled Drush command follows the Drush 13+ autowiring pattern.
+
 ## Usage
 
 ---

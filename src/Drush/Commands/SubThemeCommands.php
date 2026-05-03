@@ -9,7 +9,9 @@ use Drupal\Core\Archiver\ArchiverManager;
 use Drupal\Core\Extension\ThemeExtensionList;
 use Drupal\emulsify_tools\SubThemeGenerator;
 use Drush\Attributes as CLI;
+use Drush\Commands\AutowireTrait;
 use Drush\Commands\DrushCommands;
+use Robo\Collection\CollectionBuilder;
 use Robo\Contract\BuilderAwareInterface;
 use Robo\State\Data as RoboStateData;
 use Robo\Task\Archive\Tasks as ArchiveTaskLoader;
@@ -20,25 +22,17 @@ use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
 
 /**
- * A Drush commandfile.
+ * Provides Drush commands for Emulsify tools.
  */
 final class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
 
+  use AutowireTrait;
   use TaskAccessor;
   use ArchiveTaskLoader;
   use FilesystemTaskLoader;
 
   /**
-   * Creates the command service.
-   *
-   * @param \Drupal\Core\Extension\ThemeExtensionList $themeExtensionList
-   *   The theme extension list service.
-   * @param \Drupal\Core\Archiver\ArchiverManager $archiverManager
-   *   The archiver manager.
-   * @param \Drupal\emulsify_tools\SubThemeGenerator $subThemeGenerator
-   *   The sub-theme generator.
-   * @param \Symfony\Component\Filesystem\Filesystem $filesystem
-   *   The Symfony filesystem helper.
+   * Creates the command.
    */
   public function __construct(
     private readonly ThemeExtensionList $themeExtensionList,
@@ -55,7 +49,7 @@ final class SubThemeCommands extends DrushCommands implements BuilderAwareInterf
   #[CLI\Command(name: 'emulsify_tools:bake', aliases: ['emulsify'])]
   #[CLI\Argument(name: 'name', description: 'The name of your emulsify based subtheme.')]
   #[CLI\Usage(name: 'emulsify_tools:bake MyThemeName')]
-  public function generateSubTheme(string $name) {
+  public function generateSubTheme(string $name): CollectionBuilder {
     $machineName = $this->convertLabelToMachineName($name);
     $sourceDirectory = $this->getStarterRecipeDirectory();
     $destinationDirectory = "themes/custom/{$machineName}";
@@ -159,8 +153,8 @@ final class SubThemeCommands extends DrushCommands implements BuilderAwareInterf
     $this->logger()->debug(
       'extract downloaded Emulsify starter recipe from <info>{packPath}</info> to <info>{srcDir}</info>',
       [
-		'packPath' => $data['packPath'],
-		'srcDir' => "{$data['path']}/recipe",
+        'packPath' => $data['packPath'],
+        'srcDir' => "{$data['path']}/recipe",
       ],
     );
 
@@ -199,8 +193,8 @@ final class SubThemeCommands extends DrushCommands implements BuilderAwareInterf
     $this->logger()->debug(
       'copy Emulsify starter recipe from <info>{srcDir}</info> to <info>{dstDir}</info>',
       [
-		'srcDir' => $data['srcDir'],
-		'dstDir' => $destinationDirectory,
+        'srcDir' => $data['srcDir'],
+        'dstDir' => $destinationDirectory,
       ],
     );
 
