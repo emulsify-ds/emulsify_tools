@@ -88,6 +88,23 @@ Can also be used with the BEM Function:
 <div {{ add_attributes(additional_attributes) }}></div>
 ```
 
+### Switch Case Twig Extension
+
+This adds the ability to do a `switch/case` function from within Twig templates. To use:
+
+```twig
+{% switch content.field_name.0 %}
+    {% case "text" %}
+      <p>This appears if the field name value is set to "text"</p>
+    {% case "image" %}
+      <p>This appears if the field name value is set to "image"</p>
+    {% default %}
+      <p>The field text did not match any case.</p>
+{% endswitch %}
+```
+
+Note that the `switch`, `endswitch`, and `case` tags are required and the `default` is optional.
+
 ## Development
 
 ---
