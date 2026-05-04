@@ -19,6 +19,10 @@ codebase now uses PHP 8.4-only syntax where it improves readability.
 
 `drush emulsify [theme_name]`
 
+`drush emulsify_tools:repair-favicon-config`
+
+`drush emulsify_tools:repair-favicon-config [theme_machine_name]`
+
 ### Twig Namespaces
 
 Emulsify themes can register Symfony-style Twig namespaces in their `.info.yml`
@@ -139,6 +143,47 @@ This adds the ability to do a `switch/case` function from within Twig templates.
 ```
 
 Note that the `switch`, `endswitch`, and `case` tags are required and the `default` is optional.
+
+## Updating 6.x to 7.x
+
+Upgrading from Emulsify 6.x to 7.x introduces a new generated favicon workflow.
+Instead of relying only on legacy theme-level favicon settings, Emulsify 7.x
+stores a portable SVG source and generated package metadata in theme settings so
+favicon packages can be regenerated consistently across environments.
+
+### What changes
+
+- Active theme settings gain new favicon keys such as `favicon_source_svg`,
+  `favicon_source_filename`, platform-specific color and padding settings, and
+  generated package metadata fields like `favicon_package_hash`,
+  `favicon_package_path`, and `favicon_package_generated_at`.
+- Installed Emulsify-based themes can be migrated in place by running Drupal
+  database updates. This module provides a post update that backfills missing
+  favicon keys in active `<theme>.settings` config and, when possible, stores a
+  sanitized portable SVG source from the existing managed favicon file.
+- Older generated child themes may still be missing the source files that define
+  those settings for fresh installs and future config exports.
+
+### Child Theme Source Repair
+
+Run the repair command in the Drupal site root to update older Emulsify-based
+child theme codebases:
+
+`drush emulsify_tools:repair-favicon-config`
+
+To target a single child theme:
+
+`drush emulsify_tools:repair-favicon-config my_child_theme`
+
+The command scans Emulsify-based child themes in the current codebase and
+backfills missing favicon entries in:
+
+- `config/install/<theme>.settings.yml`
+- `config/schema/<theme>.schema.yml`
+
+Existing values are preserved. Only missing or `NULL` favicon keys and schema
+definitions are filled in. Review and commit those child theme source-file
+changes after running the command.
 
 ## Development
 
