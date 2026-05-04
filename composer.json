@@ -5,7 +5,7 @@
   "homepage": "https://emulsify.info",
   "license": "GPL-2.0-only",
   "require": {
-    "php": ">=8.3",
+    "php": "^8.4",
     "drupal/core": "^11.3"
   },
   "conflict": {

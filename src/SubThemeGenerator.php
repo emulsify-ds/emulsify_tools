@@ -56,7 +56,7 @@ final class SubThemeGenerator {
    *   The original machine name.
    */
   private function discoverOriginalMachineName(string $directory): string {
-    $finder = (new Finder())
+    $finder = new Finder()
       ->files()
       ->depth('== 0')
       ->in($directory)
@@ -140,7 +140,7 @@ final class SubThemeGenerator {
    */
   private function getFileNamesToRename(string $directory, string $originalMachineName): array {
     $fileNames = [];
-    $finder = (new Finder())
+    $finder = new Finder()
       ->files()
       ->in($directory)
       ->name("*{$originalMachineName}*");
@@ -165,7 +165,7 @@ final class SubThemeGenerator {
    */
   private function getDirectoryNamesToRename(string $directory, string $originalMachineName): array {
     $directoryNames = [];
-    $finder = (new Finder())
+    $finder = new Finder()
       ->directories()
       ->in($directory)
       ->name("*{$originalMachineName}*");
@@ -211,7 +211,7 @@ final class SubThemeGenerator {
    */
   private function getFilesToMakeReplacements(string $directory): array {
     $fileNames = [];
-    $finder = (new Finder())
+    $finder = new Finder()
       ->files()
       ->in($directory);
 
