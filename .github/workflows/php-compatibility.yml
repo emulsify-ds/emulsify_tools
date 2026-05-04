@@ -1,0 +1,31 @@
+name: PHP Compatibility
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "*.x"
+
+jobs:
+  lint:
+    name: PHP ${{ matrix.php-version }} lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version:
+          - "8.4"
+          - "8.5"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          coverage: none
+
+      - name: Lint PHP sources
+        run: git ls-files '*.php' | xargs -n 1 php -l
