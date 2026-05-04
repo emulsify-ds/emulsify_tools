@@ -29,6 +29,17 @@ services:
   emulsify_tools.subtheme_generator:
     class: Drupal\emulsify_tools\SubThemeGenerator
     arguments: ['@emulsify_tools.filesystem']
+  Drupal\emulsify_tools\Favicon\FaviconSourceSanitizerInterface:
+    alias: emulsify_tools.favicon_source_sanitizer
+  emulsify_tools.favicon_source_sanitizer:
+    class: Drupal\emulsify_tools\Favicon\EmulsifyFaviconSourceSanitizer
+    autowire: true
+  Drupal\emulsify_tools\Favicon\ChildThemeFaviconConfigRepairer:
+    class: Drupal\emulsify_tools\Favicon\ChildThemeFaviconConfigRepairer
+    autowire: true
+  Drupal\emulsify_tools\Favicon\FaviconThemeSettingsBackfill:
+    class: Drupal\emulsify_tools\Favicon\FaviconThemeSettingsBackfill
+    autowire: true
   emulsify_tools.twig.switch:
     class: Drupal\emulsify_tools\SwitchExtension
     tags:
