@@ -1,6 +1,8 @@
 services:
   emulsify_tools.filesystem:
     class: Symfony\Component\Filesystem\Filesystem
+  Symfony\Component\Filesystem\Filesystem:
+    alias: emulsify_tools.filesystem
   Drupal\emulsify_tools\AdminThemeFaviconManager:
     class: Drupal\emulsify_tools\AdminThemeFaviconManager
     autowire: true
