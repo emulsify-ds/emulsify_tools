@@ -1,14 +1,13 @@
 {
   "name": "emulsify_tools",
   "version": "2.0.0",
-  "description": "Toolset of useful Twig extensions and a subtheme generation command",
-  "main": "index.js",
+  "description": "Toolset of useful Twig extensions, theme namespaces, and subtheme generation for Emulsify",
   "engines": {
-    "node": ">=24"
+    "node": ">=20.11"
   },
   "repository": "git@github.com:emulsify-ds/emulsify_tools.git",
   "author": "techninja <james@tn42.com>",
-  "license": "MIT",
+  "license": "GPL-2.0-only",
   "private": false,
   "devDependencies": {
     "@commitlint/cli": "^20.5.3",
@@ -26,9 +25,9 @@
   "scripts": {
     "husky:commit-msg": "commitlint --edit $1",
     "husky:pre-commit": "npm run lint",
-    "lint": "npm run lint-js",
-    "lint-fix": "npm run lint-js -- --fix",
-    "lint-js": "eslint --config config/eslint.config.js --no-error-on-unmatched-pattern ./config ./storybook",
+    "lint": "npm run lint:php",
+    "lint-fix": "npm run lint:php",
+    "lint:php": "node scripts/lint-php.mjs",
     "lint-staged": "lint-staged"
   }
 }
