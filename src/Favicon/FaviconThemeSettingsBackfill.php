@@ -40,6 +40,8 @@ final class FaviconThemeSettingsBackfill {
    */
   public function backfill(): array {
     if (!class_exists(FaviconSettings::class)) {
+      // Older companion-theme builds do not ship the Emulsify 7.x favicon API.
+      // In that case the migration is intentionally a no-op instead of failing.
       return [
         'affected_count' => 0,
         'updated_count' => 0,

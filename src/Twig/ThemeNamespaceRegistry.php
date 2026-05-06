@@ -152,6 +152,8 @@ final class ThemeNamespaceRegistry {
           $relativePath = str_replace('\\', '/', $relativePath);
           $templateNames = [
             '@' . $namespace . '/' . $relativePath,
+            // Keep the basename alias for legacy includes such as
+            // @components/button.twig when the filename is unique.
             '@' . $namespace . '/' . basename($filePath),
           ];
 
@@ -191,6 +193,8 @@ final class ThemeNamespaceRegistry {
     $namespaces = [];
     foreach ($this->getThemeInheritanceChain($theme) as $themeExtension) {
       foreach ($this->normalizeThemeNamespaces($themeExtension) as $namespace => $paths) {
+        // Child-theme paths stay ahead of base-theme paths so overrides resolve
+        // in the same order Drupal template suggestions do.
         $namespaces[$namespace] = [
           ...($namespaces[$namespace] ?? []),
           ...$paths,
@@ -219,6 +223,8 @@ final class ThemeNamespaceRegistry {
 
     $defaultTheme = trim((string) $this->configFactory->get('system.theme')->get('default'));
     if ($defaultTheme !== '' && !in_array($defaultTheme, $themeNames, TRUE)) {
+      // Admin routes typically switch the active theme, so keep the default
+      // frontend theme as a fallback source of component namespaces.
       $themeNames[] = $defaultTheme;
     }
 

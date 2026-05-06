@@ -41,8 +41,11 @@ final class SubThemeGenerator {
     }
 
     if ($originalMachineName !== $machineName) {
-      $this->renameFiles($directory, $originalMachineName, $machineName);
+      // Rename directories first so any file paths that include the old theme
+      // machine name still point at existing parent directories when files are
+      // renamed afterward.
       $this->renameDirectories($directory, $originalMachineName, $machineName);
+      $this->renameFiles($directory, $originalMachineName, $machineName);
     }
   }
 
@@ -83,7 +86,7 @@ final class SubThemeGenerator {
    */
   private function renameFiles(string $directory, string $originalMachineName, string $newMachineName): void {
     foreach ($this->getFileNamesToRename($directory, $originalMachineName) as $fileName) {
-      $newFileName = str_replace($originalMachineName, $newMachineName, $fileName);
+      $newFileName = dirname($fileName) . '/' . str_replace($originalMachineName, $newMachineName, basename($fileName));
       if (str_contains($newFileName, '.emulsify.')) {
         $newFileName = str_replace('.emulsify.', '.', $newFileName);
       }
@@ -103,7 +106,7 @@ final class SubThemeGenerator {
    */
   private function renameDirectories(string $directory, string $originalMachineName, string $newMachineName): void {
     foreach ($this->getDirectoryNamesToRename($directory, $originalMachineName) as $directoryName) {
-      $newDirectoryName = str_replace($originalMachineName, $newMachineName, $directoryName);
+      $newDirectoryName = dirname($directoryName) . '/' . str_replace($originalMachineName, $newMachineName, basename($directoryName));
       $this->filesystem->rename($directoryName, $newDirectoryName);
     }
   }

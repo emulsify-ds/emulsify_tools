@@ -56,6 +56,9 @@ final class SubThemeCommands extends DrushCommands implements BuilderAwareInterf
     $sourceDirectory = $this->getStarterRecipeDirectory();
     $destinationDirectory = "themes/custom/{$machineName}";
 
+    // The current Emulsify 7.x flow reads from the local whisk starter source,
+    // but the pipeline still supports archive URLs so alternate starter sources
+    // can reuse the same copy/extract/customize steps.
     $builder = $this->collectionBuilder();
     $builder->getState()->offsetSet('srcDir', $sourceDirectory);
     $builder->addTask($this->taskTmpDir());

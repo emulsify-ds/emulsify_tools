@@ -109,6 +109,8 @@ final class ChildThemeFaviconConfigRepairer {
     if (!is_array($installSettings)) {
       $installSettings = [];
     }
+    // Merge against the base-theme template instead of rewriting wholesale so
+    // generated child themes keep any site-specific defaults they already own.
     $mergedInstallSettings = $this->mergeMissingRecursive($installSettings, $this->getInstallTemplateSettings());
     $installAction = $this->writeYamlFileIfChanged($installPath, $installSettings, $mergedInstallSettings, $installExisted);
 
@@ -266,6 +268,8 @@ final class ChildThemeFaviconConfigRepairer {
       }
 
       if (is_array($value) && is_array($merged[$key])) {
+        // Descend only into arrays that already exist so the repair command
+        // backfills missing nested keys without disturbing local overrides.
         $merged[$key] = $this->mergeMissingRecursive($merged[$key], $value);
       }
     }

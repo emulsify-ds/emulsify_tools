@@ -53,6 +53,8 @@ final class AdminThemeFaviconHooks {
         ],
       ],
     ];
+    // Theme settings forms expect static submit callbacks, so resolve the
+    // autowired hook service lazily when the form is actually submitted.
     $form['#submit'][] = [self::class, 'submitAdminThemeToggle'];
   }
 
