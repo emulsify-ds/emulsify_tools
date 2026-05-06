@@ -9,6 +9,13 @@ This module now targets Drupal `11.3+` and PHP `8.4+`.
 The bundled Drush command follows the Drush 13+ autowiring pattern, and the
 codebase now uses PHP 8.4-only syntax where it improves readability.
 
+### Companion theme pairing
+
+- `emulsify_tools` `^2.0` is intended to pair with Emulsify Drupal `^7.0`.
+- The Twig helpers and subtheme generator remain broadly useful on their own,
+  but the favicon migration and admin-theme favicon features expect the
+  Emulsify 7.x companion theme APIs to be present.
+
 ## Usage
 
 ---
@@ -164,6 +171,9 @@ favicon packages can be regenerated consistently across environments.
 - Older generated child themes may still be missing the source files that define
   those settings for fresh installs and future config exports.
 
+Run `drush updatedb` after upgrading the module so the installed theme settings
+receive the new defaults before exporting configuration.
+
 ### Child Theme Source Repair
 
 Run the repair command in the Drupal site root to update older Emulsify-based
@@ -191,21 +201,28 @@ changes after running the command.
 
 ### Requires
 
-- [Node.js v12+](http://nodejs.org/)
-- [Yarn Package Manager](https://yarnpkg.com/)
-- [Commitizen](https://github.com/commitizen/cz-cli) for commit standardization, included in install
+- [PHP 8.4+](https://www.php.net/)
+- [Composer 2](https://getcomposer.org/)
+- [Node.js 20.11+](https://nodejs.org/)
 
 ### Initial Setup
 
-1. Run `npm install` to install dependencies. You're done!
+1. Run `composer install` to install the PHPUnit and Drupal development stack.
+2. Run `npm install` to install the lightweight release and commit tooling.
+
+### Validation
+
+- `npm run lint`
+- `composer test:unit`
 
 ### Committing Changes
 
-To facilitate automatic semantic release versioning, we utilize the [Conventional Changelog](https://github.com/conventional-changelog/conventional-changelog) standard through Commitizen. Follow these steps when commiting your work to ensure a better tomorrow.
+This repository uses [Conventional Commits](https://www.conventionalcommits.org/)
+so semantic-release can determine the next version automatically.
 
 1. Stage your changes, ensuring they encompass exactly what you wish to change, no more.
-2. Run `yarn commit` and follow the prompts to craft the perfect commit message.
-3. _Rejoice!_ For now your commit message will be used to create the changelog for the next version that includes that commit.
+2. Commit using a conventional message such as `fix: repair favicon config sync`.
+3. Run the validation commands above before opening a pull request.
 
 ## Release
 
@@ -218,14 +235,16 @@ There's a two-step process to publish a new release to [the project page](https:
 
 ### Creating a release on GitHub
 
-- Once one or more PRs are merged into the development branch, [create a "Release" PR](https://github.com/emulsify-ds/emulsify_tools/compare/main...feature-branch) to merge the latest from that branch into `main`.
-- As soon as that PR is merged, a [GitHub action](https://github.com/emulsify-ds/emulsify_tools/actions) will kick off to cut a release based on the commit messages in that release.
-  - _Note: This workflow will also push the new tag to drupal.org so that you can select it in the next section._
-- When that is finished, you should see the new release listed on the [Releases page](https://github.com/emulsify-ds/emulsify_tools/releases) for the repository.
+- Merge the release-ready changes into `main`.
+- The [semantic-release workflow](https://github.com/emulsify-ds/emulsify_tools/actions)
+  will calculate the next version from the merged commit messages, create the
+  GitHub release, and push the new tag to Drupal.org.
+- When the workflow completes, confirm the new version appears on the
+  [GitHub Releases page](https://github.com/emulsify-ds/emulsify_tools/releases).
 
 ### Publishing the release to Drupal.org
 
-- Go to the [Releases tab for the Emulsify Twig project](https://www.drupal.org/node/3094752/edit/releases) on drupal.org. (You'll need to be a maintainer to access this page.)
+- Go to the [Releases tab for the Emulsify Tools project](https://www.drupal.org/node/3094752/edit/releases) on drupal.org. (You'll need to be a maintainer to access this page.)
 - Click "Add new release"
 - Select the tag for the latest release and click Next
 - Copy the release notes from the GitHub releases page, and reformat them according to the wysiwyg options

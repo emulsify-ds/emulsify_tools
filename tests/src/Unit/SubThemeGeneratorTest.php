@@ -6,14 +6,15 @@ namespace Drupal\Tests\emulsify_tools\Unit;
 
 use Drupal\emulsify_tools\SubThemeGenerator;
 use Drupal\Tests\UnitTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 use Symfony\Component\Filesystem\Filesystem;
 
 /**
  * Tests subtheme generation.
- *
- * @coversDefaultClass \Drupal\emulsify_tools\SubThemeGenerator
- * @group emulsify_tools
  */
+#[CoversClass(SubThemeGenerator::class)]
+#[Group('emulsify_tools')]
 final class SubThemeGeneratorTest extends UnitTestCase {
 
   /**
@@ -50,8 +51,6 @@ final class SubThemeGeneratorTest extends UnitTestCase {
 
   /**
    * Tests file, directory, and content replacements during generation.
-   *
-   * @covers ::generate
    */
   public function testGenerateRenamesThemeAssetsAndRewritesContent(): void {
     $themeDirectory = $this->temporaryDirectory . '/theme';
@@ -93,8 +92,6 @@ final class SubThemeGeneratorTest extends UnitTestCase {
 
   /**
    * Tests that the source theme info file is required.
-   *
-   * @covers ::generate
    */
   public function testGenerateRequiresAnEmulsifyInfoFile(): void {
     $themeDirectory = $this->temporaryDirectory . '/missing-info';

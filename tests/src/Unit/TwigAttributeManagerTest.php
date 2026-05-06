@@ -7,19 +7,18 @@ namespace Drupal\Tests\emulsify_tools\Unit;
 use Drupal\Core\Template\Attribute;
 use Drupal\emulsify_tools\TwigAttributeManager;
 use Drupal\Tests\UnitTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Tests attribute normalization for Emulsify Twig helpers.
- *
- * @coversDefaultClass \Drupal\emulsify_tools\TwigAttributeManager
- * @group emulsify_tools
  */
+#[CoversClass(TwigAttributeManager::class)]
+#[Group('emulsify_tools')]
 final class TwigAttributeManagerTest extends UnitTestCase {
 
   /**
    * Tests add_attributes()-style merging and attribute detachment.
-   *
-   * @covers ::mergeContextAttributes
    */
   public function testMergeContextAttributesDetachesAndMergesValues(): void {
     $sourceAttributes = new Attribute([
@@ -48,8 +47,6 @@ final class TwigAttributeManagerTest extends UnitTestCase {
 
   /**
    * Tests BEM attribute merging preserves generated class precedence.
-   *
-   * @covers ::buildBemAttributes
    */
   public function testBuildBemAttributesMergesAndSanitizesClasses(): void {
     $sourceAttributes = new Attribute([

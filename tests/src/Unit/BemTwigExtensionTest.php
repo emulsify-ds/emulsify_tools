@@ -8,19 +8,18 @@ use Drupal\Core\Template\Attribute;
 use Drupal\emulsify_tools\BemTwigExtension;
 use Drupal\emulsify_tools\TwigAttributeManager;
 use Drupal\Tests\UnitTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Tests the BEM Twig extension.
- *
- * @coversDefaultClass \Drupal\emulsify_tools\BemTwigExtension
- * @group emulsify_tools
  */
+#[CoversClass(BemTwigExtension::class)]
+#[Group('emulsify_tools')]
 final class BemTwigExtensionTest extends UnitTestCase {
 
   /**
    * Tests positional bem() arguments.
-   *
-   * @covers ::bem
    */
   public function testBemBuildsExpectedClassesFromPositionalArguments(): void {
     $extension = new BemTwigExtension(new TwigAttributeManager());
@@ -52,8 +51,6 @@ final class BemTwigExtensionTest extends UnitTestCase {
 
   /**
    * Tests array-style bem() arguments.
-   *
-   * @covers ::bem
    */
   public function testBemBuildsExpectedClassesFromConfigurationArray(): void {
     $extension = new BemTwigExtension(new TwigAttributeManager());

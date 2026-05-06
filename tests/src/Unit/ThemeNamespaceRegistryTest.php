@@ -6,13 +6,15 @@ namespace Drupal\Tests\emulsify_tools\Unit;
 
 use Drupal\emulsify_tools\Twig\ThemeNamespaceRegistry;
 use Drupal\Tests\UnitTestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Tests Twig namespace template validation.
- *
- * @coversDefaultClass \Drupal\emulsify_tools\Twig\ThemeNamespaceRegistry
- * @group emulsify_tools
  */
+#[CoversClass(ThemeNamespaceRegistry::class)]
+#[Group('emulsify_tools')]
 final class ThemeNamespaceRegistryTest extends UnitTestCase {
 
   /**
@@ -23,10 +25,8 @@ final class ThemeNamespaceRegistryTest extends UnitTestCase {
    * @param bool $expected
    *   The expected validation result.
    *
-   * @dataProvider providerTemplateNames
-   *
-   * @covers ::isValidTemplateName
    */
+  #[DataProvider('providerTemplateNames')]
   public function testIsValidTemplateName(string $templateName, bool $expected): void {
     self::assertSame($expected, ThemeNamespaceRegistry::isValidTemplateName($templateName));
   }
