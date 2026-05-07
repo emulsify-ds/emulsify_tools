@@ -9,6 +9,7 @@ use Drupal\Core\Cache\CacheTagsInvalidatorInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\File\FileUrlGeneratorInterface;
+use Drupal\Core\Lock\LockBackendInterface;
 use Drupal\emulsify\Favicon\FaviconPackageGenerator;
 use Drupal\file\FileInterface;
 
@@ -26,6 +27,7 @@ final class EmulsifyFaviconSourceSanitizer implements FaviconSourceSanitizerInte
     private readonly ConfigFactoryInterface $configFactory,
     private readonly CacheTagsInvalidatorInterface $cacheTagsInvalidator,
     private readonly TimeInterface $time,
+    private readonly LockBackendInterface $lock,
   ) {}
 
   /**
@@ -38,6 +40,7 @@ final class EmulsifyFaviconSourceSanitizer implements FaviconSourceSanitizerInte
       $this->configFactory,
       $this->cacheTagsInvalidator,
       $this->time,
+      $this->lock,
     );
     $analysis = $generator->validateSourceFile($file, FALSE);
 

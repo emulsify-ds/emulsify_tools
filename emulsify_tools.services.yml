@@ -42,6 +42,9 @@ services:
   Drupal\emulsify_tools\Favicon\FaviconThemeSettingsBackfill:
     class: Drupal\emulsify_tools\Favicon\FaviconThemeSettingsBackfill
     autowire: true
+  Drupal\emulsify_tools\Favicon\FaviconCommandManager:
+    class: Drupal\emulsify_tools\Favicon\FaviconCommandManager
+    autowire: true
   emulsify_tools.twig.switch:
     class: Drupal\emulsify_tools\SwitchExtension
     tags:
