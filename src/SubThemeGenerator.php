@@ -35,6 +35,7 @@ final class SubThemeGenerator {
    */
   public function generate(string $directory, string $machineName, string $name): void {
     $originalMachineName = $this->discoverOriginalMachineName($directory);
+    $this->removeStarterkitOnlyFiles($directory, $originalMachineName);
 
     foreach ($this->getFilesToMakeReplacements($directory) as $fileName) {
       $this->modifyFileContent($fileName, $this->getFileContentReplacementPairs($machineName, $name));
@@ -46,6 +47,23 @@ final class SubThemeGenerator {
       // renamed afterward.
       $this->renameDirectories($directory, $originalMachineName, $machineName);
       $this->renameFiles($directory, $originalMachineName, $machineName);
+    }
+  }
+
+  /**
+   * Removes starterkit-only source metadata from the generated theme copy.
+   */
+  private function removeStarterkitOnlyFiles(string $directory, string $originalMachineName): void {
+    $starterkitOnlyFiles = [
+      $directory . '/project.emulsify.json',
+      $directory . '/' . $originalMachineName . '.info.emulsify.yml',
+      $directory . '/' . $originalMachineName . '.starterkit.yml',
+    ];
+
+    foreach ($starterkitOnlyFiles as $fileName) {
+      if ($this->filesystem->exists($fileName)) {
+        $this->filesystem->remove($fileName);
+      }
     }
   }
 
