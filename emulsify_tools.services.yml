@@ -45,6 +45,8 @@ services:
   Drupal\emulsify_tools\Favicon\FaviconCommandManager:
     class: Drupal\emulsify_tools\Favicon\FaviconCommandManager
     autowire: true
+  Drupal\Core\Lock\LockBackendInterface:
+    alias: lock
   emulsify_tools.twig.switch:
     class: Drupal\emulsify_tools\SwitchExtension
     tags:
