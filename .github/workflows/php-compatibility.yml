@@ -31,7 +31,7 @@ jobs:
         run: git ls-files '*.php' | xargs -n 1 php -l
 
   unit:
-    name: PHPUnit (Drupal ${{ matrix.drupal-core }} / PHP ${{ matrix.php-version }})
+    name: PHPUnit (Drupal ${{ matrix.drupal-label }} / PHP ${{ matrix.php-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -39,8 +39,10 @@ jobs:
         include:
           - php-version: "8.4"
             drupal-core: "^11.3"
+            drupal-label: "^11.3"
           - php-version: "8.5"
-            drupal-core: "^12"
+            drupal-core: "12.x-dev@dev"
+            drupal-label: "12.x-dev"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,14 +53,20 @@ jobs:
           php-version: ${{ matrix.php-version }}
           coverage: none
 
+      - name: Pin Drupal test dependency line
+        run: |
+          composer require --no-update "drupal/core:${{ matrix.drupal-core }}"
+          composer require --no-update "drupal/core-composer-scaffold:${{ matrix.drupal-core }}"
+          composer require --dev --no-update "drupal/core-dev:${{ matrix.drupal-core }}"
+
       - name: Resolve and install Drupal test dependencies
-        run: composer update drupal/core drupal/core-dev --with-all-dependencies --prefer-dist --no-interaction
+        run: composer update --with-all-dependencies --prefer-dist --no-interaction
 
       - name: Run unit tests
         run: composer test:unit
 
   deprecations:
-    name: Drupal deprecations (Drupal 12 / PHP 8.5)
+    name: Drupal deprecations (Drupal 12.x-dev / PHP 8.5)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -70,8 +78,14 @@ jobs:
           php-version: "8.5"
           coverage: none
 
+      - name: Pin Drupal 12 dependency line
+        run: |
+          composer require --no-update "drupal/core:12.x-dev@dev"
+          composer require --no-update "drupal/core-composer-scaffold:12.x-dev@dev"
+          composer require --dev --no-update "drupal/core-dev:12.x-dev@dev"
+
       - name: Resolve and install Drupal 12 dependencies
-        run: composer update drupal/core drupal/core-dev --with-all-dependencies --prefer-dist --no-interaction
+        run: composer update --with-all-dependencies --prefer-dist --no-interaction
 
       - name: Run deprecation analysis
         run: composer test:deprecations
