@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Drupal\emulsify_tools\Drush\Commands;
 
 use Drupal\Component\Utility\UrlHelper;
-use Drupal\Core\Archiver\ArchiverManager;
 use Drupal\Core\Extension\ThemeExtensionList;
+use Drupal\emulsify_tools\Archive\StarterRecipeArchiveExtractor;
 use Drupal\emulsify_tools\Favicon\ChildThemeFaviconConfigRepairer;
 use Drupal\emulsify_tools\SubThemeGenerator;
 use Drush\Attributes as CLI;
@@ -29,8 +29,7 @@ final class SubThemeCommands extends DrushCommands {
    */
   public function __construct(
     private readonly ThemeExtensionList $themeExtensionList,
-    #[Autowire(service: 'plugin.manager.archiver')]
-    private readonly ArchiverManager $archiverManager,
+    private readonly StarterRecipeArchiveExtractor $starterRecipeArchiveExtractor,
     #[Autowire(service: 'emulsify_tools.subtheme_generator')]
     private readonly SubThemeGenerator $subThemeGenerator,
     private readonly Filesystem $filesystem,
@@ -222,9 +221,7 @@ final class SubThemeCommands extends DrushCommands {
     $state['srcDir'] = "{$state['path']}/recipe";
 
     try {
-      /** @var \Drupal\Core\Archiver\ArchiverInterface $extractorInstance */
-      $extractorInstance = $this->archiverManager->getInstance(['filepath' => $state['packPath']]);
-      $extractorInstance->extract($state['srcDir']);
+      $this->starterRecipeArchiveExtractor->extract($state['packPath'], $state['srcDir']);
     }
     catch (\Exception $exception) {
       $this->logger()->error($exception->getMessage());

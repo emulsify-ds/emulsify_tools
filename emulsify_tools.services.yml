@@ -31,6 +31,9 @@ services:
   emulsify_tools.subtheme_generator:
     class: Drupal\emulsify_tools\SubThemeGenerator
     arguments: ['@emulsify_tools.filesystem']
+  Drupal\emulsify_tools\Archive\StarterRecipeArchiveExtractor:
+    class: Drupal\emulsify_tools\Archive\StarterRecipeArchiveExtractor
+    autowire: true
   Drupal\emulsify_tools\Favicon\FaviconSourceSanitizerInterface:
     alias: emulsify_tools.favicon_source_sanitizer
   emulsify_tools.favicon_source_sanitizer:

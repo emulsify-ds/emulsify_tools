@@ -6,6 +6,7 @@ namespace Drupal\emulsify_tools;
 
 use Twig\Error\SyntaxError;
 use Twig\Node\Node;
+use Twig\Node\Nodes;
 use Twig\Token;
 use Twig\TokenParser\AbstractTokenParser;
 
@@ -17,6 +18,11 @@ use Twig\TokenParser\AbstractTokenParser;
  * @see https://github.com/craftcms/cms.
  */
 final class SwitchTokenParser extends AbstractTokenParser {
+
+  /**
+   * Stops case-value parsing before Twig consumes the "or" delimiter.
+   */
+  private const CASE_VALUE_PRECEDENCE = 11;
 
   /**
    * {@inheritdoc}
@@ -34,19 +40,18 @@ final class SwitchTokenParser extends AbstractTokenParser {
     $stream = $parser->getStream();
 
     $nodes = [
-      'value' => $parser->getExpressionParser()->parseExpression(),
+      'value' => $parser->parseExpression(),
     ];
 
     $stream->expect(Token::BLOCK_END_TYPE);
 
     // Trim whitespace between the {% switch %} and first {% case %} tag.
-    while ($stream->getCurrent()->getType() === Token::TEXT_TYPE && trim($stream->getCurrent()->getValue()) === '') {
+    while ($stream->getCurrent()->test(Token::TEXT_TYPE) && trim($stream->getCurrent()->getValue()) === '') {
       $stream->next();
     }
 
     $stream->expect(Token::BLOCK_START_TYPE);
 
-    $expressionParser = $parser->getExpressionParser();
     $cases = [];
     $end = FALSE;
 
@@ -57,7 +62,7 @@ final class SwitchTokenParser extends AbstractTokenParser {
         case 'case':
           $values = [];
           while (TRUE) {
-            $values[] = $expressionParser->parsePrimaryExpression();
+            $values[] = $parser->parseExpression(self::CASE_VALUE_PRECEDENCE);
             // Multiple allowed values?
             if ($stream->test(Token::OPERATOR_TYPE, 'or')) {
               $stream->next();
@@ -69,7 +74,7 @@ final class SwitchTokenParser extends AbstractTokenParser {
           $stream->expect(Token::BLOCK_END_TYPE);
           $body = $parser->subparse([$this, 'decideIfFork']);
           $cases[] = new Node([
-            'values' => new Node($values),
+            'values' => new Nodes($values),
             'body' => $body,
           ]);
           break;
@@ -88,7 +93,7 @@ final class SwitchTokenParser extends AbstractTokenParser {
       }
     }
 
-    $nodes['cases'] = new Node($cases);
+    $nodes['cases'] = new Nodes($cases);
 
     $stream->expect(Token::BLOCK_END_TYPE);
 
