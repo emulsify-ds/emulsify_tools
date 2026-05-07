@@ -31,7 +31,34 @@ jobs:
         run: git ls-files '*.php' | xargs -n 1 php -l
 
   unit:
-    name: PHPUnit (PHP 8.4)
+    name: PHPUnit (Drupal ${{ matrix.drupal-core }} / PHP ${{ matrix.php-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php-version: "8.4"
+            drupal-core: "^11.3"
+          - php-version: "8.5"
+            drupal-core: "^12"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          coverage: none
+
+      - name: Resolve and install Drupal test dependencies
+        run: composer update drupal/core drupal/core-dev --with-all-dependencies --prefer-dist --no-interaction
+
+      - name: Run unit tests
+        run: composer test:unit
+
+  deprecations:
+    name: Drupal deprecations (Drupal 12 / PHP 8.5)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -40,11 +67,11 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.4"
+          php-version: "8.5"
           coverage: none
 
-      - name: Install Composer dependencies
-        run: composer install --no-interaction --prefer-dist
+      - name: Resolve and install Drupal 12 dependencies
+        run: composer update drupal/core drupal/core-dev --with-all-dependencies --prefer-dist --no-interaction
 
-      - name: Run unit tests
-        run: composer test:unit
+      - name: Run deprecation analysis
+        run: composer test:deprecations

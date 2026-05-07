@@ -4,7 +4,7 @@ This module provides Emulsify Twig extensions, theme-defined Twig namespaces, an
 
 ## Compatibility
 
-This module now targets Drupal `11.3+` and PHP `8.4+`.
+This module now targets Drupal `11.3+`, Drupal `12.x`, and PHP `8.4+`.
 
 The bundled Drush command follows the Drush 13+ autowiring pattern, and the
 codebase now uses PHP 8.4-only syntax where it improves readability.
