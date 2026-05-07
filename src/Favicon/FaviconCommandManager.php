@@ -147,7 +147,7 @@ final class FaviconCommandManager {
   private function createThemeManager(): object {
     $class = self::THEME_MANAGER_CLASS;
     if (!class_exists($class)) {
-      throw new \RuntimeException('The installed Emulsify theme does not expose the FaviconThemeManager API required by these commands.');
+      throw new \RuntimeException('Emulsify Tools favicon commands require Emulsify Drupal 7.x or newer. The installed Emulsify theme does not expose Drupal\\emulsify\\Favicon\\FaviconThemeManager.');
     }
 
     return new $class(

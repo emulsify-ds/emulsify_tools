@@ -12,12 +12,7 @@ use Drupal\emulsify_tools\SubThemeGenerator;
 use Drush\Attributes as CLI;
 use Drush\Commands\AutowireTrait;
 use Drush\Commands\DrushCommands;
-use Robo\Collection\CollectionBuilder;
-use Robo\Contract\BuilderAwareInterface;
-use Robo\State\Data as RoboStateData;
-use Robo\Task\Archive\Tasks as ArchiveTaskLoader;
-use Robo\Task\Filesystem\Tasks as FilesystemTaskLoader;
-use Robo\TaskAccessor;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
@@ -25,19 +20,18 @@ use Symfony\Component\Finder\SplFileInfo;
 /**
  * Provides Drush commands for Emulsify tools.
  */
-final class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
+final class SubThemeCommands extends DrushCommands {
 
   use AutowireTrait;
-  use TaskAccessor;
-  use ArchiveTaskLoader;
-  use FilesystemTaskLoader;
 
   /**
    * Creates the command.
    */
   public function __construct(
     private readonly ThemeExtensionList $themeExtensionList,
+    #[Autowire(service: 'plugin.manager.archiver')]
     private readonly ArchiverManager $archiverManager,
+    #[Autowire(service: 'emulsify_tools.subtheme_generator')]
     private readonly SubThemeGenerator $subThemeGenerator,
     private readonly Filesystem $filesystem,
     private readonly ChildThemeFaviconConfigRepairer $childThemeFaviconConfigRepairer,
@@ -51,27 +45,40 @@ final class SubThemeCommands extends DrushCommands implements BuilderAwareInterf
   #[CLI\Command(name: 'emulsify_tools:bake', aliases: ['emulsify'])]
   #[CLI\Argument(name: 'name', description: 'The name of your emulsify based subtheme.')]
   #[CLI\Usage(name: 'emulsify_tools:bake MyThemeName')]
-  public function generateSubTheme(string $name): CollectionBuilder {
+  public function generateSubTheme(string $name): int {
     $machineName = $this->convertLabelToMachineName($name);
     $sourceDirectory = $this->getStarterRecipeDirectory();
     $destinationDirectory = "themes/custom/{$machineName}";
+    $state = ['srcDir' => $sourceDirectory];
+    $temporaryDirectory = NULL;
 
     // The current Emulsify 7.x flow reads from the local whisk starter source,
     // but the pipeline still supports archive URLs so alternate starter sources
     // can reuse the same copy/extract/customize steps.
-    $builder = $this->collectionBuilder();
-    $builder->getState()->offsetSet('srcDir', $sourceDirectory);
-    $builder->addTask($this->taskTmpDir());
+    try {
+      if (UrlHelper::isValid($sourceDirectory, TRUE)) {
+        $temporaryDirectory = $this->createTemporaryDirectory();
+        $state['path'] = $temporaryDirectory;
 
-    if (UrlHelper::isValid($sourceDirectory, TRUE)) {
-      $builder->addCode(fn (RoboStateData $data): int => $this->downloadStarterRecipe($data, $sourceDirectory));
-      $builder->addCode(fn (RoboStateData $data): int => $this->extractStarterRecipe($data));
+        if ($this->downloadStarterRecipe($state, $sourceDirectory) !== 0) {
+          return 1;
+        }
+        if ($this->extractStarterRecipe($state) !== 0) {
+          return 1;
+        }
+      }
+
+      if ($this->copyStarterRecipe($state, $destinationDirectory) !== 0) {
+        return 1;
+      }
+
+      return $this->customizeStarterRecipe($name, $machineName, $destinationDirectory);
     }
-
-    $builder->addCode(fn (RoboStateData $data): int => $this->copyStarterRecipe($data, $destinationDirectory));
-    $builder->addCode(fn (): int => $this->customizeStarterRecipe($name, $machineName, $destinationDirectory));
-
-    return $builder;
+    finally {
+      if ($temporaryDirectory !== NULL && $this->filesystem->exists($temporaryDirectory)) {
+        $this->filesystem->remove($temporaryDirectory);
+      }
+    }
   }
 
   /**
@@ -164,27 +171,27 @@ final class SubThemeCommands extends DrushCommands implements BuilderAwareInterf
   /**
    * Downloads a remote starter recipe archive.
    *
-   * @param \Robo\State\Data $data
-   *   The Robo state bag.
+   * @param array<string, mixed> $state
+   *   The command state bag.
    * @param string $sourceDirectory
    *   The remote archive URL.
    *
    * @return int
    *   Zero on success, non-zero on failure.
    */
-  private function downloadStarterRecipe(RoboStateData $data, string $sourceDirectory): int {
+  private function downloadStarterRecipe(array &$state, string $sourceDirectory): int {
     $this->logger()->debug(
       'download Emulsify recipe from <info>{recipeUrl}</info>',
       ['recipeUrl' => $sourceDirectory],
     );
 
     $fileName = $this->getFileNameFromUrl($sourceDirectory);
-    $packageDirectory = "{$data['path']}/pack";
-    $data['packPath'] = "{$packageDirectory}/{$fileName}";
+    $packageDirectory = "{$state['path']}/pack";
+    $state['packPath'] = "{$packageDirectory}/{$fileName}";
 
     try {
       $this->filesystem->mkdir($packageDirectory);
-      $this->filesystem->copy($sourceDirectory, $data['packPath']);
+      $this->filesystem->copy($sourceDirectory, $state['packPath']);
     }
     catch (\Exception $exception) {
       $this->logger()->error($exception->getMessage());
@@ -197,36 +204,36 @@ final class SubThemeCommands extends DrushCommands implements BuilderAwareInterf
   /**
    * Extracts a downloaded starter recipe archive.
    *
-   * @param \Robo\State\Data $data
-   *   The Robo state bag.
+   * @param array<string, mixed> $state
+   *   The command state bag.
    *
    * @return int
    *   Zero on success, non-zero on failure.
    */
-  private function extractStarterRecipe(RoboStateData $data): int {
+  private function extractStarterRecipe(array &$state): int {
     $this->logger()->debug(
       'extract downloaded Emulsify starter recipe from <info>{packPath}</info> to <info>{srcDir}</info>',
       [
-        'packPath' => $data['packPath'],
-        'srcDir' => "{$data['path']}/recipe",
+        'packPath' => $state['packPath'],
+        'srcDir' => "{$state['path']}/recipe",
       ],
     );
 
-    $data['srcDir'] = "{$data['path']}/recipe";
+    $state['srcDir'] = "{$state['path']}/recipe";
 
     try {
       /** @var \Drupal\Core\Archiver\ArchiverInterface $extractorInstance */
-      $extractorInstance = $this->archiverManager->getInstance(['filepath' => $data['packPath']]);
-      $extractorInstance->extract($data['srcDir']);
+      $extractorInstance = $this->archiverManager->getInstance(['filepath' => $state['packPath']]);
+      $extractorInstance->extract($state['srcDir']);
     }
     catch (\Exception $exception) {
       $this->logger()->error($exception->getMessage());
       return 1;
     }
 
-    $topLevelDirectory = $this->getTopLevelDirectory($data['srcDir']);
+    $topLevelDirectory = $this->getTopLevelDirectory($state['srcDir']);
     if ($topLevelDirectory !== '') {
-      $data['srcDir'] = $topLevelDirectory;
+      $state['srcDir'] = $topLevelDirectory;
     }
 
     return 0;
@@ -235,19 +242,19 @@ final class SubThemeCommands extends DrushCommands implements BuilderAwareInterf
   /**
    * Copies the starter recipe into the destination theme directory.
    *
-   * @param \Robo\State\Data $data
-   *   The Robo state bag.
+   * @param array<string, mixed> $state
+   *   The command state bag.
    * @param string $destinationDirectory
    *   The destination directory.
    *
    * @return int
    *   Zero on success, non-zero on failure.
    */
-  private function copyStarterRecipe(RoboStateData $data, string $destinationDirectory): int {
+  private function copyStarterRecipe(array $state, string $destinationDirectory): int {
     $this->logger()->debug(
       'copy Emulsify starter recipe from <info>{srcDir}</info> to <info>{dstDir}</info>',
       [
-        'srcDir' => $data['srcDir'],
+        'srcDir' => $state['srcDir'],
         'dstDir' => $destinationDirectory,
       ],
     );
@@ -258,7 +265,7 @@ final class SubThemeCommands extends DrushCommands implements BuilderAwareInterf
     }
 
     try {
-      $this->filesystem->mirror($data['srcDir'], $destinationDirectory);
+      $this->filesystem->mirror($state['srcDir'], $destinationDirectory);
     }
     catch (\Exception $exception) {
       $this->logger()->error($exception->getMessage());
@@ -266,6 +273,16 @@ final class SubThemeCommands extends DrushCommands implements BuilderAwareInterf
     }
 
     return 0;
+  }
+
+  /**
+   * Creates a temporary working directory for starter recipe processing.
+   */
+  private function createTemporaryDirectory(): string {
+    $temporaryDirectory = sys_get_temp_dir() . '/emulsify-tools-' . bin2hex(random_bytes(8));
+    $this->filesystem->mkdir($temporaryDirectory);
+
+    return $temporaryDirectory;
   }
 
   /**
