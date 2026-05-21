@@ -18,15 +18,17 @@ codebase now uses PHP 8.4-only syntax where it improves readability.
 
 ## Usage
 
----
+### Child theme generation
 
-### Drush
+Emulsify Tools 1.x provides the supported Drush workflow for generating Emulsify Drupal 6.x child themes. Use either command form:
 
 Child theme generation:
 
 `drush emulsify_tools:bake [theme_name]`
 
-`drush emulsify [theme_name]`
+The commands are equivalent. The generated child theme uses `emulsify` as its runtime parent theme and should be created under the Drupal custom theme path expected by the command, such as `web/themes/custom/my_theme` in a Composer-based Drupal project.
+
+Drupal core Starterkit-based generation is being prepared for the Emulsify Drupal 7.x release line. For Emulsify Drupal 6.x, use Emulsify Tools for child theme generation.
 
 Generated favicon deployment:
 
@@ -129,7 +131,7 @@ named within the namespace.
 
 ### BEM Twig Extension
 
-Twig function that inserts static classes into Pattern Lab and adds them to the Attributes object in Drupal
+The `bem()` Twig function builds BEM class names and returns them in a form that can be printed into Drupal template attributes.
 
 #### Simple block name (required argument):
 
@@ -181,7 +183,7 @@ This creates:
 
 ### Add Attributes Twig Extension
 
-Twig function that merges with template level attributes in Drupal and prevents them from trickling down into includes.
+The `add_attributes()` Twig function merges additional attributes with Drupal's template-level attributes and prevents those attributes from trickling into child includes.
 
 ```
 {% set additional_attributes = {
@@ -293,6 +295,31 @@ changes after running the command.
 - `bash .github/scripts/favicon-command-smoke.sh /path/to/drupal-site [theme_name]`
   for a prepared integration fixture with Emulsify Drupal 7.x, Emulsify Tools
   2.x, and favicon source config.
+
+### Generation Smoke Test
+
+To validate the Emulsify Drupal 6.x child theme generation workflow against this checkout, run:
+
+```
+.github/scripts/generation-smoke.sh
+```
+
+The script creates a disposable Drupal fixture site, installs Emulsify Drupal `^6`, installs this checkout as Emulsify Tools `1.x`, verifies both Drush command help targets, runs `drush emulsify watson`, validates the generated theme files, and enables the generated child theme. It intentionally does not test Drupal core Starterkit generation.
+
+Requirements: Composer and PHP. The default SQLite fixture database also requires `pdo_sqlite`.
+
+Optional environment variables:
+
+```
+FIXTURE_DIR=/tmp/emulsify-tools-generation-smoke
+DRUPAL_VERSION=11.3.*
+EMULSIFY_VERSION=^6
+TOOLS_VERSION=1.0.99
+DRUSH_VERSION=^13
+THEME_NAME=watson
+DB_URL=sqlite://sites/default/files/.ht.sqlite
+KEEP_FIXTURE=1
+```
 
 ### Committing Changes
 
