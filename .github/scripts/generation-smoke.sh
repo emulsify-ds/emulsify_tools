@@ -5,12 +5,20 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 FIXTURE_DIR="${FIXTURE_DIR:-${TMPDIR:-/tmp}/emulsify-tools-generation-smoke}"
-DRUPAL_VERSION="${DRUPAL_VERSION:-10.3.*}"
+DRUPAL_VERSION="${DRUPAL_VERSION:-11.3.*}"
 EMULSIFY_VERSION="${EMULSIFY_VERSION:-^6}"
 TOOLS_VERSION="${TOOLS_VERSION:-1.0.99}"
-THEME_NAME="${THEME_NAME:-my_theme}"
+DRUSH_VERSION="${DRUSH_VERSION:-^13}"
+THEME_NAME="${THEME_NAME:-watson}"
 DB_URL="${DB_URL:-sqlite://sites/default/files/.ht.sqlite}"
 LOCAL_PACKAGE_DIR="${FIXTURE_DIR}/local/emulsify_tools"
+
+cleanup_fixture() {
+  if [[ -d "$FIXTURE_DIR" ]]; then
+    chmod -R u+w "$FIXTURE_DIR" 2>/dev/null || true
+    rm -rf "$FIXTURE_DIR"
+  fi
+}
 
 log() {
   printf '\n==> %s\n' "$*"
@@ -71,15 +79,23 @@ assert_command_fails_with() {
 command -v composer >/dev/null || fail "composer is required."
 command -v php >/dev/null || fail "php is required."
 if [[ "$DB_URL" == sqlite://* ]]; then
-  php -m | grep -qi '^pdo_sqlite$' || fail "The pdo_sqlite PHP extension is required for DB_URL=${DB_URL}."
+  php -r 'exit(extension_loaded("pdo_sqlite") ? 0 : 1);' || fail "The pdo_sqlite PHP extension is required for DB_URL=${DB_URL}."
+fi
+
+if [[ -x "$REPO_ROOT/vendor/bin/yaml-lint" ]]; then
+  log "Linting module YAML files"
+  "$REPO_ROOT/vendor/bin/yaml-lint" \
+    "$REPO_ROOT/emulsify_tools.info.yml" \
+    "$REPO_ROOT/emulsify_tools.services.yml" \
+    "$REPO_ROOT/drush.services.yml"
 fi
 
 if [[ "${KEEP_FIXTURE:-0}" != "1" ]]; then
-  trap 'rm -rf "$FIXTURE_DIR"' EXIT
+  trap cleanup_fixture EXIT
 fi
 
 log "Creating disposable Drupal fixture at ${FIXTURE_DIR}"
-rm -rf "$FIXTURE_DIR"
+cleanup_fixture
 composer create-project "drupal/recommended-project:${DRUPAL_VERSION}" "$FIXTURE_DIR" \
   --no-interaction \
   --no-progress
@@ -125,12 +141,12 @@ log "Installing Emulsify Drupal ${EMULSIFY_VERSION}, Emulsify Tools ${TOOLS_VERS
 composer require \
   "drupal/emulsify:${EMULSIFY_VERSION}" \
   "drupal/emulsify_tools:${TOOLS_VERSION}" \
-  "drush/drush:^12" \
+  "drush/drush:${DRUSH_VERSION}" \
   --with-all-dependencies \
   --no-interaction \
   --no-progress
 
-log "Installing Drupal with SQLite"
+log "Installing Drupal fixture"
 mkdir -p web/sites/default/files
 vendor/bin/drush site:install minimal \
   --db-url="$DB_URL" \
@@ -146,9 +162,11 @@ vendor/bin/drush cr -y
 
 log "Checking that the public Drush command is discoverable"
 vendor/bin/drush list | grep -Fq 'emulsify_tools:bake' || fail "Drush command emulsify_tools:bake was not discovered."
+vendor/bin/drush help emulsify >/dev/null || fail "Drush help for emulsify failed."
+vendor/bin/drush help emulsify_tools:bake >/dev/null || fail "Drush help for emulsify_tools:bake failed."
 
-log "Generating ${THEME_NAME} with drush emulsify_tools:bake"
-vendor/bin/drush emulsify_tools:bake "$THEME_NAME"
+log "Generating ${THEME_NAME} with drush emulsify"
+vendor/bin/drush emulsify "$THEME_NAME"
 
 theme_dir="web/themes/custom/${THEME_NAME}"
 info_file="${theme_dir}/${THEME_NAME}.info.yml"
@@ -163,12 +181,13 @@ assert_file "${theme_dir}/config/schema/${THEME_NAME}.schema.yml"
 assert_not_exists "${theme_dir}/whisk.info.emulsify.yml"
 assert_not_exists "${theme_dir}/config/install/whisk.settings.yml"
 assert_not_exists "${theme_dir}/config/schema/whisk.schema.yml"
+assert_not_exists "${theme_dir}/project.emulsify.json"
 
-log "Confirming existing destination fails safely through the drush emulsify alias"
+log "Confirming existing destination fails safely through drush emulsify_tools:bake"
 guard_checksum_before="$(cksum "$info_file")"
 assert_command_fails_with \
   "The destination theme already exists: themes/custom/${THEME_NAME}" \
-  vendor/bin/drush emulsify "$THEME_NAME"
+  vendor/bin/drush emulsify_tools:bake "$THEME_NAME"
 guard_checksum_after="$(cksum "$info_file")"
 [[ "$guard_checksum_before" == "$guard_checksum_after" ]] || fail "Existing destination was modified: ${info_file}"
 

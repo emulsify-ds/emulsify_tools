@@ -147,6 +147,7 @@ class SubThemeGenerator {
     return $this
       ->initMachineNameOld()
       ->modifyFileContents()
+      ->removeStarterOnlyFiles()
       ->renameFiles();
   }
 
@@ -174,6 +175,17 @@ class SubThemeGenerator {
     foreach ($this->getFilesToMakeReplacements() as $fileName) {
       $this->modifyFileContent($fileName, $replacementPairs);
     }
+
+    return $this;
+  }
+
+  /**
+   * Remove files that are only used by the starter source.
+   *
+   * @return $this
+   */
+  protected function removeStarterOnlyFiles() {
+    $this->fs->remove($this->getDir() . '/project.emulsify.json');
 
     return $this;
   }
@@ -238,6 +250,7 @@ class SubThemeGenerator {
   protected function getFileContentReplacementPairs(): array {
     return [
       'EMULSIFY_NAME' => $this->getName(),
+      'drupal:emulsify_tools (^4.0)' => 'drupal:emulsify_tools (^1.0)',
       'whisk' => $this->getMachineName(),
     ];
   }
