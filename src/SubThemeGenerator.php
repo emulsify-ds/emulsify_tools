@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Drupal\emulsify_tools;
 
@@ -55,10 +55,10 @@ class SubThemeGenerator {
   protected $name = '';
 
   /**
-   * Initialize the class.
+   * Constructs a new subtheme generator.
    */
-  public function __construct() {
-    $this->fs = new Filesystem();
+  public function __construct(Filesystem $fs) {
+    $this->fs = $fs;
     $this->finder = new Finder();
   }
 

@@ -1,12 +1,11 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Drupal\emulsify_tools\Drush\Commands;
 
 use Drupal\Component\Utility\UrlHelper;
 use Drupal\Core\Archiver\ArchiverManager;
-use Drupal\Core\DependencyInjection\AutowireTrait;
 use Drupal\Core\Extension\ThemeExtensionList;
 use Drupal\emulsify_tools\SubThemeGenerator;
 use Drush\Attributes as CLI;
@@ -16,7 +15,6 @@ use Robo\State\Data as RoboStateData;
 use Robo\Task\Archive\Tasks as ArchiveTaskLoader;
 use Robo\Task\Filesystem\Tasks as FilesystemTaskLoader;
 use Robo\TaskAccessor;
-use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
 
@@ -32,7 +30,6 @@ class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
   use TaskAccessor;
   use ArchiveTaskLoader;
   use FilesystemTaskLoader;
-  use AutowireTrait;
 
   /**
    * The emulsify subtheme generator.
@@ -69,24 +66,14 @@ class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
     ThemeExtensionList $themeExtensionList,
     ArchiverManager $archiverManager,
     SubThemeGenerator $subThemeGenerator,
-    ) {
+    Filesystem $fs,
+  ) {
     $this->themeExtensionList = $themeExtensionList;
     $this->archiverManager = $archiverManager;
     $this->subThemeGenerator = $subThemeGenerator;
-    $this->fs = new Filesystem();
+    $this->fs = $fs;
 
     parent::__construct();
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public static function create(ContainerInterface $container) {
-    return new static(
-      $container->get('extension.list.theme'),
-      $container->get('plugin.manager.archiver'),
-      $container->get('emulsify_tools.subtheme_generator'),
-    );
   }
 
   /**
@@ -99,9 +86,28 @@ class SubThemeCommands extends DrushCommands implements BuilderAwareInterface {
     string $name,
   ) {
     $machineName = $this->convertLabelToMachineName($name);
+    $dstDir = "themes/custom/{$machineName}";
+
+    if ($this->fs->exists($dstDir) || is_link($dstDir)) {
+      $this->logger()->error("The destination theme already exists: {$dstDir}");
+
+      return 1;
+    }
+
+    if (!$this->themeExtensionList->exists('emulsify')) {
+      $this->logger()->error('The Emulsify parent theme was not found: emulsify');
+
+      return 1;
+    }
+
     $emulsifyDir = $this->themeExtensionList->getPath('emulsify');
     $srcDir = $emulsifyDir . "/whisk";
-    $dstDir = "themes/custom/{$machineName}";
+
+    if (!UrlHelper::isValid($srcDir, TRUE) && (!$this->fs->exists($srcDir) || !is_dir($srcDir))) {
+      $this->logger()->error("The Emulsify Whisk source directory was not found: {$srcDir}");
+
+      return 1;
+    }
 
     $cb = $this->collectionBuilder();
     $cb->getState()->offsetSet('srcDir', $srcDir);
