@@ -1,6 +1,6 @@
 {
   "name": "emulsify-ds/emulsify_tools",
-  "description": "Provides Twig functions and subtheme generation for use with Emulsify",
+  "description": "Provides Twig functions and child theme generation for use with Emulsify",
   "type": "drupal-module",
   "homepage": "https://emulsify.info",
   "license": "GPL-2.0-only",
@@ -26,7 +26,7 @@
     "drush/drush": "<13.0"
   },
   "suggest": {
-    "drush/drush": "Install Drush 13+ to use the emulsify_tools:bake command."
+    "drush/drush": "Install Drush 13+ to use the emulsify_tools:bake and favicon deployment commands."
   },
   "scripts": {
     "test:unit": "phpunit --configuration phpunit.xml.dist",

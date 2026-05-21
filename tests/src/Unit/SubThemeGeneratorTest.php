@@ -11,7 +11,7 @@ use PHPUnit\Framework\Attributes\Group;
 use Symfony\Component\Filesystem\Filesystem;
 
 /**
- * Tests subtheme generation.
+ * Tests child theme generation.
  */
 #[CoversClass(SubThemeGenerator::class)]
 #[Group('emulsify_tools')]

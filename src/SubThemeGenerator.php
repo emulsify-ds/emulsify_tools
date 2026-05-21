@@ -9,7 +9,7 @@ use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
 
 /**
- * Generates Emulsify sub-themes.
+ * Generates Emulsify child themes.
  */
 final class SubThemeGenerator {
 
@@ -24,7 +24,7 @@ final class SubThemeGenerator {
   ) {}
 
   /**
-   * Generates a customized sub-theme in place.
+   * Generates a customized child theme in place.
    *
    * @param string $directory
    *   The destination directory.

@@ -39,10 +39,10 @@ final class SubThemeCommands extends DrushCommands {
   }
 
   /**
-   * Creates an Emulsify sub-theme.
+   * Creates an Emulsify child theme.
    */
   #[CLI\Command(name: 'emulsify_tools:bake', aliases: ['emulsify'])]
-  #[CLI\Argument(name: 'name', description: 'The name of your emulsify based subtheme.')]
+  #[CLI\Argument(name: 'name', description: 'The name of your Emulsify-based child theme.')]
   #[CLI\Usage(name: 'emulsify_tools:bake MyThemeName')]
   public function generateSubTheme(string $name): int {
     $machineName = $this->convertLabelToMachineName($name);

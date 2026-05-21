@@ -29,9 +29,13 @@ final class FaviconCommands extends DrushCommands {
    * Generates the current favicon package for an Emulsify-based theme.
    */
   #[CLI\Command(name: 'emulsify_tools:favicon-generate')]
+  #[CLI\Help(
+    description: 'Generate or refresh a favicon package from Emulsify Drupal theme settings.',
+    synopsis: 'Use after deploy or config import so generated favicon files exist before page requests attach them. The target theme must be Emulsify or an Emulsify child theme configured through the Emulsify Drupal theme settings form.',
+  )]
   #[CLI\Argument(name: 'theme', description: 'Optional Emulsify or Emulsify child theme machine name. Defaults to the configured frontend theme.')]
-  #[CLI\Usage(name: 'emulsify_tools:favicon-generate')]
-  #[CLI\Usage(name: 'emulsify_tools:favicon-generate sfasu')]
+  #[CLI\Usage(name: 'emulsify_tools:favicon-generate', description: 'Generate the favicon package for the configured default frontend theme.')]
+  #[CLI\Usage(name: 'emulsify_tools:favicon-generate my_theme', description: 'Generate the favicon package for the my_theme Emulsify child theme.')]
   public function generate(?string $theme = NULL): int {
     try {
       $result = $this->faviconCommandManager->generate($theme);
@@ -61,9 +65,13 @@ final class FaviconCommands extends DrushCommands {
    * Reports favicon package status for an Emulsify-based theme.
    */
   #[CLI\Command(name: 'emulsify_tools:favicon-status')]
+  #[CLI\Help(
+    description: 'Check favicon package, dependency, and portable source status for an Emulsify-based theme.',
+    synopsis: 'Reports whether favicon generation is enabled, whether the generated package exists, whether GD and Imagick are available, and whether portable SVG source config can regenerate the package.',
+  )]
   #[CLI\Argument(name: 'theme', description: 'Optional Emulsify or Emulsify child theme machine name. Defaults to the configured frontend theme.')]
-  #[CLI\Usage(name: 'emulsify_tools:favicon-status')]
-  #[CLI\Usage(name: 'emulsify_tools:favicon-status sfasu')]
+  #[CLI\Usage(name: 'emulsify_tools:favicon-status', description: 'Check favicon package status for the configured default frontend theme.')]
+  #[CLI\Usage(name: 'emulsify_tools:favicon-status my_theme', description: 'Check favicon package status for the my_theme Emulsify child theme.')]
   public function status(?string $theme = NULL): int {
     try {
       $result = $this->faviconCommandManager->status($theme);
@@ -113,9 +121,13 @@ final class FaviconCommands extends DrushCommands {
    * Resets a theme back to the default favicon behavior.
    */
   #[CLI\Command(name: 'emulsify_tools:favicon-reset')]
+  #[CLI\Help(
+    description: 'Remove generated favicon package state and restore default favicon behavior for an Emulsify-based theme.',
+    synopsis: 'Use when intentionally discarding generated package metadata and assets. Configure and save the Emulsify Drupal theme settings form again, or run favicon-generate after config import, to recreate the package.',
+  )]
   #[CLI\Argument(name: 'theme', description: 'Optional Emulsify or Emulsify child theme machine name. Defaults to the configured frontend theme.')]
-  #[CLI\Usage(name: 'emulsify_tools:favicon-reset')]
-  #[CLI\Usage(name: 'emulsify_tools:favicon-reset sfasu')]
+  #[CLI\Usage(name: 'emulsify_tools:favicon-reset', description: 'Reset favicon package state for the configured default frontend theme.')]
+  #[CLI\Usage(name: 'emulsify_tools:favicon-reset my_theme', description: 'Reset favicon package state for the my_theme Emulsify child theme.')]
   public function reset(?string $theme = NULL): int {
     try {
       $result = $this->faviconCommandManager->reset($theme);

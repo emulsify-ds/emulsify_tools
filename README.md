@@ -1,18 +1,18 @@
 # Emulsify Tools module
 
-This module provides Emulsify Twig extensions, theme-defined Twig namespaces, and a theme generation Drush command.
+This module provides Emulsify Twig extensions, theme-defined Twig namespaces, child theme generation Drush commands, and deployment commands for Emulsify Drupal favicon packages.
 
 ## Compatibility
 
-This module now targets Drupal `11.3+`, Drupal `12.x`, and PHP `8.4+`.
+This module targets Drupal `11.3+`, includes Drupal 12 forward compatibility, and requires PHP `8.4+`. Drupal core development branch coverage is experimental until Drupal 12 beta or stable releases are available.
 
-The bundled Drush command follows the Drush 13+ autowiring pattern, and the
+The bundled Drush commands follow the Drush 13+ autowiring pattern, and the
 codebase now uses PHP 8.4-only syntax where it improves readability.
 
 ### Companion theme pairing
 
 - `emulsify_tools` `^2.0` is intended to pair with Emulsify Drupal `^7.0`.
-- The Twig helpers and subtheme generator remain broadly useful on their own,
+- The Twig helpers and child theme generator remain broadly useful on their own,
   but the favicon migration and admin-theme favicon features expect the
   Emulsify 7.x companion theme APIs to be present.
 
@@ -22,13 +22,82 @@ codebase now uses PHP 8.4-only syntax where it improves readability.
 
 ### Drush
 
+Child theme generation:
+
 `drush emulsify_tools:bake [theme_name]`
 
 `drush emulsify [theme_name]`
 
+Generated favicon deployment:
+
+`drush emulsify_tools:favicon-generate [theme_name]`
+
+`drush emulsify_tools:favicon-status [theme_name]`
+
+`drush emulsify_tools:favicon-reset [theme_name]`
+
+Child theme source repair:
+
 `drush emulsify_tools:repair-favicon-config`
 
 `drush emulsify_tools:repair-favicon-config [theme_machine_name]`
+
+### Generated Favicon Deployment
+
+Emulsify Drupal 7.x owns favicon theme settings, config defaults and schema,
+admin preview UI, frontend head tag attachment, portable SVG source storage, and
+the generated asset references stored in `<theme>.settings`.
+
+Emulsify Tools 2.x owns Drush-facing deployment operations for that workflow.
+Configure the favicon in the Emulsify Drupal theme settings form, export config,
+and run the generate command after config import or deploy so environment-local
+package files exist before traffic reaches the site.
+
+Emulsify Drupal page requests do not generate missing favicon package files.
+After config import, `emulsify_tools:favicon-generate` is the supported
+deployment path for recreating packages from saved portable SVG config.
+
+The favicon commands delegate generation, status, and reset behavior to the
+Emulsify Drupal favicon manager instead of duplicating package logic in this
+module.
+
+The optional admin-theme favicon toggle in this module only reuses an already
+generated Emulsify package on admin routes. It does not replace the Emulsify
+Drupal theme settings UI or frontend head-tag attachment.
+
+#### Deploy/config-import workflow
+
+1. Configure and save favicon settings in the Emulsify Drupal theme settings
+   form for `emulsify` or an Emulsify child theme.
+2. Export and deploy/import configuration as usual.
+3. Run `drush emulsify_tools:favicon-generate my_theme` after config import so
+   the environment-local generated package exists before page requests need it.
+4. Run `drush emulsify_tools:favicon-status my_theme` in deployment diagnostics
+   to confirm dependencies, package state, and portable SVG source state.
+
+#### Command examples
+
+```bash
+drush emulsify_tools:favicon-generate my_theme
+drush emulsify_tools:favicon-status my_theme
+drush emulsify_tools:favicon-reset my_theme
+```
+
+Omit `my_theme` to target the configured default frontend theme. The target must
+be `emulsify` or an Emulsify child theme.
+
+`emulsify_tools:favicon-generate` generates or refreshes the package from the
+saved Emulsify Drupal theme settings. Use it in deployment hooks and
+post-config-import automation.
+
+`emulsify_tools:favicon-status` reports whether generation is enabled, whether
+the package exists, whether GD and Imagick are available, and whether the
+portable SVG source is available for regeneration.
+
+`emulsify_tools:favicon-reset` removes generated package metadata and assets and
+restores the default theme favicon behavior. Configure and save the Emulsify
+Drupal theme settings form again, or rerun `emulsify_tools:favicon-generate`
+after config import, to recreate the package.
 
 ### Twig Namespaces
 
@@ -174,6 +243,13 @@ favicon packages can be regenerated consistently across environments.
 Run `drush updatedb` after upgrading the module so the installed theme settings
 receive the new defaults before exporting configuration.
 
+After exporting or importing those settings, use
+`drush emulsify_tools:favicon-generate [theme_name]` to recreate generated
+package files in each environment. Use
+`drush emulsify_tools:favicon-status [theme_name]` for deployment diagnostics
+and `drush emulsify_tools:favicon-reset [theme_name]` when you intentionally
+want to remove generated package state.
+
 ### Child Theme Source Repair
 
 Run the repair command in the Drupal site root to update older Emulsify-based
@@ -214,6 +290,9 @@ changes after running the command.
 
 - `npm run lint`
 - `composer test:unit`
+- `bash .github/scripts/favicon-command-smoke.sh /path/to/drupal-site [theme_name]`
+  for a prepared integration fixture with Emulsify Drupal 7.x, Emulsify Tools
+  2.x, and favicon source config.
 
 ### Committing Changes
 
