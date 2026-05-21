@@ -1,20 +1,29 @@
 # Emulsify Tools module
 
-This module provides two Twig extensions used in the [Emulsify Design System](https://github.com/emulsify-ds/) as well as a theme generation Drush command.
+This module provides Twig helpers used in the [Emulsify Design System](https://github.com/emulsify-ds/) and the Drush child theme generation workflow for Emulsify Drupal 6.x.
+
+## Compatibility
+
+Emulsify Tools 1.x is intended for the Emulsify Drupal 6.x child theme generation workflow. The paired Emulsify Drupal 6.x release line supports Drupal `^10.3 || ^11`.
 
 ## Usage
 
----
+### Child theme generation
 
-### Drush
+Emulsify Tools 1.x provides the supported Drush workflow for generating Emulsify Drupal 6.x child themes. Use either command form:
 
-`drush emulsify_tools:bake [theme_name]`
+```
+drush emulsify my_theme
+drush emulsify_tools:bake my_theme
+```
 
-`drush emulsify [theme_name]`
+The commands are equivalent. The generated child theme uses `emulsify` as its runtime parent theme and should be created under the Drupal custom theme path expected by the command, such as `web/themes/custom/my_theme` in a Composer-based Drupal project.
+
+Drupal core Starterkit-based generation is being prepared for the Emulsify Drupal 7.x release line. For Emulsify Drupal 6.x, use Emulsify Tools for child theme generation.
 
 ### BEM Twig Extension
 
-Twig function that inserts static classes into Pattern Lab and adds them to the Attributes object in Drupal
+The `bem()` Twig function builds BEM class names and returns them in a form that can be printed into Drupal template attributes.
 
 #### Simple block name (required argument):
 
@@ -66,7 +75,7 @@ This creates:
 
 ### Add Attributes Twig Extension
 
-Twig function that merges with template level attributes in Drupal and prevents them from trickling down into includes.
+The `add_attributes()` Twig function merges additional attributes with Drupal's template-level attributes and prevents those attributes from trickling into child includes.
 
 ```
 {% set additional_attributes = {
@@ -101,6 +110,30 @@ Can also be used with the BEM Function:
 ### Initial Setup
 
 1. Run `npm install` to install dependencies. You're done!
+
+### Generation Smoke Test
+
+To validate the Emulsify Drupal 6.x child theme generation workflow against this checkout, run:
+
+```
+.github/scripts/generation-smoke.sh
+```
+
+The script creates a disposable Drupal fixture site, installs Emulsify Drupal `^6`, installs this checkout as Emulsify Tools `1.x`, runs `drush emulsify_tools:bake my_theme`, validates the generated theme files, and enables the generated child theme. It intentionally does not test Drupal core Starterkit generation.
+
+Requirements: Composer and PHP. The default SQLite fixture database also requires `pdo_sqlite`.
+
+Optional environment variables:
+
+```
+FIXTURE_DIR=/tmp/emulsify-tools-generation-smoke
+DRUPAL_VERSION=10.3.*
+EMULSIFY_VERSION=^6
+TOOLS_VERSION=1.0.99
+THEME_NAME=my_theme
+DB_URL=sqlite://sites/default/files/.ht.sqlite
+KEEP_FIXTURE=1
+```
 
 ### Committing Changes
 
