@@ -68,9 +68,9 @@ final class AdminThemeFaviconManagerTest extends UnitTestCase {
     $attachments = [
       '#attached' => [
         'html_head_link' => [
-          [['rel' => 'icon', 'href' => '/misc/favicon.ico'], 'core_favicon'],
-          [['rel' => 'manifest', 'href' => '/misc/site.webmanifest'], 'core_manifest'],
-          [['rel' => 'canonical', 'href' => '/node/1'], 'canonical'],
+          [['rel' => 'icon', 'href' => '/misc/favicon.ico'], FALSE],
+          [['rel' => 'manifest', 'href' => '/misc/site.webmanifest'], FALSE],
+          [['rel' => 'canonical', 'href' => '/node/1'], FALSE],
         ],
         'html_head' => [
           [[
@@ -99,7 +99,7 @@ final class AdminThemeFaviconManagerTest extends UnitTestCase {
           'rel' => 'canonical',
           'href' => '/node/1',
         ],
-        'canonical',
+        FALSE,
       ],
       [
         [
@@ -107,7 +107,7 @@ final class AdminThemeFaviconManagerTest extends UnitTestCase {
           'href' => '/generated/favicon-package/sfasu/hash/favicon.ico',
           'sizes' => 'any',
         ],
-        'emulsify_tools_admin_favicon_ico',
+        FALSE,
       ],
       [
         [
@@ -115,21 +115,21 @@ final class AdminThemeFaviconManagerTest extends UnitTestCase {
           'type' => 'image/svg+xml',
           'href' => '/generated/favicon-package/sfasu/hash/favicon.svg',
         ],
-        'emulsify_tools_admin_favicon_svg',
+        FALSE,
       ],
       [
         [
           'rel' => 'apple-touch-icon',
           'href' => '/generated/favicon-package/sfasu/hash/apple-touch-icon.png',
         ],
-        'emulsify_tools_admin_favicon_ios',
+        FALSE,
       ],
       [
         [
           'rel' => 'manifest',
           'href' => '/generated/favicon-package/sfasu/hash/site.webmanifest',
         ],
-        'emulsify_tools_admin_favicon_manifest',
+        FALSE,
       ],
     ], $attachments['#attached']['html_head_link']);
 
@@ -188,7 +188,7 @@ final class AdminThemeFaviconManagerTest extends UnitTestCase {
     $attachments = [
       '#attached' => [
         'html_head_link' => [
-          [['rel' => 'icon', 'href' => '/misc/favicon.ico'], 'core_favicon'],
+          [['rel' => 'icon', 'href' => '/misc/favicon.ico'], FALSE],
         ],
       ],
     ];

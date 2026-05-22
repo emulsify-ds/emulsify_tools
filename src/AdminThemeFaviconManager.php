@@ -216,23 +216,23 @@ final class AdminThemeFaviconManager {
       'rel' => 'icon',
       'href' => $this->fileUrlGenerator->generateString($packagePath . '/favicon.ico'),
       'sizes' => 'any',
-    ], 'emulsify_tools_admin_favicon_ico'];
+    ], FALSE];
 
     $attachments['#attached']['html_head_link'][] = [[
       'rel' => 'icon',
       'type' => 'image/svg+xml',
       'href' => $this->fileUrlGenerator->generateString($packagePath . '/favicon.svg'),
-    ], 'emulsify_tools_admin_favicon_svg'];
+    ], FALSE];
 
     $attachments['#attached']['html_head_link'][] = [[
       'rel' => 'apple-touch-icon',
       'href' => $this->fileUrlGenerator->generateString($packagePath . '/apple-touch-icon.png'),
-    ], 'emulsify_tools_admin_favicon_ios'];
+    ], FALSE];
 
     $attachments['#attached']['html_head_link'][] = [[
       'rel' => 'manifest',
       'href' => $this->fileUrlGenerator->generateString($packagePath . '/site.webmanifest'),
-    ], 'emulsify_tools_admin_favicon_manifest'];
+    ], FALSE];
 
     $attachments['#attached']['html_head'][] = [[
       '#tag' => 'meta',
