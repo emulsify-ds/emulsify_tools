@@ -1,15 +1,44 @@
 {
-    "name": "emulsify-ds/emulsify_tools",
-    "description": "Provides Twig functions and subtheme generation for use with Emulsify",
-    "type": "drupal-module",
-    "homepage": "http://emulsify.info",
-    "license": "GPL-2.0-only",
-    "repositories": {
-        "drupal": {
-            "type": "composer",
-            "url": "https://packages.drupal.org/8"
-        }
+  "name": "emulsify-ds/emulsify_tools",
+  "description": "Provides Twig functions and child theme generation for use with Emulsify",
+  "type": "drupal-module",
+  "homepage": "https://emulsify.info",
+  "license": "GPL-2.0-only",
+  "autoload": {
+    "psr-4": {
+      "Drupal\\emulsify_tools\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Drupal\\Tests\\emulsify_tools\\": "tests/src/",
+      "Drupal\\emulsify\\Favicon\\": "tests/fixtures/Drupal/emulsify/Favicon/"
+    }
+  },
+  "require": {
+    "php": "^8.4",
+    "drupal/core": "^11.3 || ^12"
+  },
+  "require-dev": {
+    "drupal/core-dev": "^11.3 || ^12"
+  },
+  "conflict": {
+    "drush/drush": "<13.0"
+  },
+  "suggest": {
+    "drush/drush": "Install Drush 13+ to use the emulsify_tools:bake and favicon deployment commands."
+  },
+  "scripts": {
+    "test:unit": "phpunit --configuration phpunit.xml.dist",
+    "test:deprecations": "phpstan analyse --configuration phpstan.neon.dist --no-progress --memory-limit=1G --debug"
+  },
+  "config": {
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true,
+      "drupal/core-composer-scaffold": false,
+      "phpstan/extension-installer": true,
+      "symfony/runtime": true
     },
-    "minimum-stability": "dev",
-    "prefer-stable": true
+    "sort-packages": true
+  }
 }

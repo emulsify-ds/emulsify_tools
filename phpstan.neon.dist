@@ -1,0 +1,8 @@
+parameters:
+  level: 0
+  paths:
+    - src
+    - emulsify_tools.post_update.php
+  bootstrapFiles:
+    - tests/bootstrap.php
+  tmpDir: .phpstan
