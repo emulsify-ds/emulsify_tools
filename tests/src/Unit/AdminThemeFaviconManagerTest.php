@@ -70,7 +70,12 @@ final class AdminThemeFaviconManagerTest extends UnitTestCase {
         'html_head_link' => [
           [['rel' => 'icon', 'href' => '/misc/favicon.ico'], FALSE],
           [['rel' => 'manifest', 'href' => '/misc/site.webmanifest'], FALSE],
-          [['rel' => 'canonical', 'href' => '/node/1'], FALSE],
+          [['rel' => 'canonical', 'href' => '/node/1']],
+          [['rel' => 'alternate', 'href' => '/feed.xml'], TRUE],
+          [['rel' => 'shortlink', 'href' => '/node/1'], 'legacy_key'],
+          [NULL, 'broken_link'],
+          [],
+          [['rel' => 'preconnect']],
         ],
         'html_head' => [
           [[
@@ -97,6 +102,20 @@ final class AdminThemeFaviconManagerTest extends UnitTestCase {
       [
         [
           'rel' => 'canonical',
+          'href' => '/node/1',
+        ],
+        FALSE,
+      ],
+      [
+        [
+          'rel' => 'alternate',
+          'href' => '/feed.xml',
+        ],
+        TRUE,
+      ],
+      [
+        [
+          'rel' => 'shortlink',
           'href' => '/node/1',
         ],
         FALSE,

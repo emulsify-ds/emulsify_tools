@@ -261,14 +261,19 @@ final class AdminThemeFaviconManager {
    */
   private function removeConflictingLinks(array &$attachments): void {
     if (!empty($attachments['#attached']['html_head_link'])) {
-      $attachments['#attached']['html_head_link'] = array_values(array_filter(
-        $attachments['#attached']['html_head_link'],
-        static function (array $item): bool {
-          $attributes = $item[0] ?? [];
-          $rel = strtolower((string) ($attributes['rel'] ?? ''));
-          return !in_array($rel, ['shortcut icon', 'icon', 'apple-touch-icon', 'manifest'], TRUE);
-        },
-      ));
+      $headLinks = [];
+      foreach ($attachments['#attached']['html_head_link'] as $item) {
+        $normalized = $this->normalizeHeadLinkAttachment($item);
+        if ($normalized === NULL) {
+          continue;
+        }
+
+        $rel = strtolower((string) $normalized[0]['rel']);
+        if (!in_array($rel, ['shortcut icon', 'icon', 'apple-touch-icon', 'manifest'], TRUE)) {
+          $headLinks[] = $normalized;
+        }
+      }
+      $attachments['#attached']['html_head_link'] = $headLinks;
     }
 
     if (!empty($attachments['#attached']['html_head'])) {
@@ -281,6 +286,30 @@ final class AdminThemeFaviconManager {
         },
       ));
     }
+  }
+
+  /**
+   * Normalizes one html_head_link attachment to Drupal core's expected shape.
+   *
+   * @return array{0: array<string, mixed>, 1: bool}|null
+   *   A normalized link attachment, or NULL when the item is unusable.
+   */
+  private function normalizeHeadLinkAttachment(mixed $item): ?array {
+    if (!is_array($item) || !isset($item[0]) || !is_array($item[0])) {
+      return NULL;
+    }
+
+    $attributes = $item[0];
+    if (empty($attributes['rel']) || empty($attributes['href'])) {
+      return NULL;
+    }
+
+    $addHeader = $item[1] ?? FALSE;
+
+    return [
+      $attributes,
+      is_bool($addHeader) ? $addHeader : FALSE,
+    ];
   }
 
   /**
