@@ -1,7 +1,7 @@
 // release.config.cjs
 module.exports = {
   branches: ['main'],
-  repositoryUrl: 'git@github.com:emulsify-ds/emulsify_tools.git',
+  repositoryUrl: 'https://github.com/emulsify-ds/emulsify_tools.git',
   plugins: [
     [
       '@semantic-release/commit-analyzer',
