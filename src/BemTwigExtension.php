@@ -1,144 +1,187 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\emulsify_tools;
 
 use Drupal\Core\Template\Attribute;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
-use Drupal\Component\Utility\Html;
 
 /**
- * Class DefaultService.
- *
- * @package Drupal\EmulsifyExt
+ * Adds a Twig helper for generating BEM-aware attribute objects.
  */
-class BemTwigExtension extends AbstractExtension {
+final class BemTwigExtension extends AbstractExtension {
+
+  /**
+   * Creates the extension.
+   *
+   * @param \Drupal\emulsify_tools\TwigAttributeManager $attributeManager
+   *   The shared Twig attribute manager.
+   */
+  public function __construct(
+    private readonly TwigAttributeManager $attributeManager,
+  ) {}
 
   /**
    * {@inheritdoc}
-   *
-   * This function must return the name of the extension. It must be unique.
    */
-  public function getName() {
-    return 'emulsify_twig_bem';
-  }
-
-  /**
-   * In this function we can declare the extension function.
-   */
-  public function getFunctions() {
+  public function getFunctions(): array {
     return [
       new TwigFunction(
         'bem',
         [$this, 'bem'],
-        ['needs_context' => TRUE, 'is_safe' => ['html']]
+        ['needs_context' => TRUE, 'is_safe' => ['html']],
       ),
     ];
   }
 
   /**
-   * Used to set classes/attributes based on the passed options.
+   * Builds a Drupal attribute object populated with BEM classes.
+   *
+   * @param array $context
+   *   The Twig render context.
+   * @param mixed $baseClass
+   *   A base class string or a configuration object/array.
+   * @param mixed $modifiers
+   *   Optional BEM modifiers.
+   * @param mixed $blockname
+   *   Optional BEM block name.
+   * @param mixed $extra
+   *   Optional extra classes.
+   *
+   * @return \Drupal\Core\Template\Attribute
+   *   A detached attribute collection.
    */
-  public function bem($context, $base_class, $modifiers = [], $blockname = '', $extra = []) {
-    $classes = [];
+  public function bem(
+    array $context,
+    mixed $baseClass,
+    mixed $modifiers = [],
+    mixed $blockname = '',
+    mixed $extra = [],
+  ): Attribute {
+    [$resolvedBaseClass, $resolvedModifiers, $resolvedBlockName, $resolvedExtra] = $this->resolveArguments(
+      $baseClass,
+      $modifiers,
+      $blockname,
+      $extra,
+    );
 
-    // Add the ability to pass an object as the one and only argument.
-    if (is_object($base_class) || is_array($base_class)) {
-      $object = (object) $base_class;
-      $map = [
-        'block' => 'base_class',
-        'element' => 'blockname',
-        'modifiers' => 'modifiers',
-        'extra' => 'extra',
+    return $this->attributeManager->buildBemAttributes(
+      $context,
+      $this->buildClasses($resolvedBaseClass, $resolvedModifiers, $resolvedBlockName, $resolvedExtra),
+    );
+  }
+
+  /**
+   * Resolves positional or object-style bem() arguments.
+   *
+   * @param mixed $baseClass
+   *   A base class string or a configuration object/array.
+   * @param mixed $modifiers
+   *   Optional BEM modifiers.
+   * @param mixed $blockName
+   *   Optional BEM block name.
+   * @param mixed $extra
+   *   Optional extra classes.
+   *
+   * @return array
+   *   The resolved arguments in base, modifiers, blockname, extra order.
+   */
+  private function resolveArguments(
+    mixed $baseClass,
+    mixed $modifiers,
+    mixed $blockName,
+    mixed $extra,
+  ): array {
+    if (is_array($baseClass) || is_object($baseClass)) {
+      $configuration = (array) $baseClass;
+
+      return [
+        (string) ($configuration['block'] ?? $configuration['base_class'] ?? ''),
+        $this->normalizeStringList($configuration['modifiers'] ?? []),
+        (string) ($configuration['element'] ?? $configuration['blockname'] ?? ''),
+        $this->normalizeStringList($configuration['extra'] ?? []),
       ];
-      foreach ($map as $object_key => $arg_key) {
-        if (isset($object->$object_key)) {
-          $$arg_key = $object->$object_key;
-        }
+    }
+
+    return [
+      $this->normalizeString($baseClass),
+      $this->normalizeStringList($modifiers),
+      $this->normalizeString($blockName),
+      $this->normalizeStringList($extra),
+    ];
+  }
+
+  /**
+   * Builds a BEM class list.
+   *
+   * @param string $baseClass
+   *   The BEM base class.
+   * @param string[] $modifiers
+   *   BEM modifiers.
+   * @param string $blockName
+   *   Optional BEM block name.
+   * @param string[] $extra
+   *   Extra classes.
+   *
+   * @return string[]
+   *   The generated class list.
+   */
+  private function buildClasses(string $baseClass, array $modifiers, string $blockName, array $extra): array {
+    $classes = [];
+    $bemBaseClass = $blockName !== '' && $baseClass !== '' ? $blockName . '__' . $baseClass : $baseClass;
+
+    if ($bemBaseClass !== '') {
+      $classes[] = $bemBaseClass;
+      foreach ($modifiers as $modifier) {
+        $classes[] = $bemBaseClass . '--' . $modifier;
       }
     }
-    else {
-      // Ensure array arguments.
-      if (!is_array($modifiers)) {
-        $modifiers = [$modifiers];
-      }
-      if (!is_array($extra)) {
-        $extra = [$extra];
-      }
 
-      // If using a blockname to override default class.
-      if ($blockname) {
-        // Set blockname class.
-        $classes[] = $blockname . '__' . $base_class;
-        // Set blockname--modifier classes for each modifier.
-        if (!empty($modifiers)) {
-          foreach ($modifiers as $modifier) {
-            if (isset($modifier)) {
-              $classes[] = $blockname . '__' . $base_class . '--' . $modifier;
-            }
-          };
-        }
-      }
-      // If not overriding base class.
-      else {
-        // Set base class.
-        $classes[] = $base_class;
-        // Set base--modifier class for each modifier.
-        if (!empty($modifiers)) {
-          foreach ($modifiers as $modifier) {
-            if (isset($modifier)) {
-              $classes[] = $base_class . '--' . $modifier;
-            }
-          };
-        }
-      }
-      // If extra non-BEM classes are added.
-      if (!empty($extra)) {
-        foreach ($extra as $extra_class) {
-          if (!empty($extra_class)) {
-            $classes[] = $extra_class;
-          }
-        };
-      }
-      if (class_exists('Drupal')) {
-        $attributes = new Attribute();
+    return array_merge($classes, $extra);
+  }
 
-        // If context attributes doesn't exist or is an array, create new Attribute.
-        $context['attributes'] = $context['attributes'] ?? new Attribute();
-        if (is_array($context['attributes'])) {
-          $context['attributes'] = new Attribute($context['attributes']);
-        }
-
-        // Checking the attributes from the context.
-        if (!empty($context['attributes'])) {
-          // Iterate the attributes available in context.
-          foreach ($context['attributes'] as $key => $value) {
-            // If there are classes, add them to the classes array.
-            if ($key === 'class') {
-              foreach ($value as $class) {
-                $classes[] = $class;
-              }
-            }
-            // Otherwise add the attribute straightaway.
-            else {
-              $attributes->setAttribute($key, $value);
-            }
-            // Remove the attribute from context so it doesn't trickle down to
-            // includes.
-            $context['attributes']->removeAttribute($key);
-          }
-        }
-        // Add class attribute.
-        if (!empty($classes)) {
-          // Escape the css classes added to prevent security issues.
-          $classes = array_map(function($css_class) {
-            return Html::cleanCssIdentifier($css_class);
-          }, $classes);
-          $attributes->setAttribute('class', $classes);
-        }
-        return $attributes;
-      }
+  /**
+   * Normalizes a class list into trimmed strings.
+   *
+   * @param mixed $values
+   *   The incoming values.
+   *
+   * @return string[]
+   *   The normalized list.
+   */
+  private function normalizeStringList(mixed $values): array {
+    if (!is_array($values)) {
+      $values = [$values];
     }
+
+    $normalizedValues = [];
+    foreach ($values as $value) {
+      if (!is_scalar($value) && !$value instanceof \Stringable) {
+        continue;
+      }
+
+      $stringValue = trim((string) $value);
+      if ($stringValue === '') {
+        continue;
+      }
+
+      $normalizedValues[] = $stringValue;
+    }
+
+    return $normalizedValues;
+  }
+
+  /**
+   * Normalizes a possibly-null scalar-ish value into a trimmed string.
+   */
+  private function normalizeString(mixed $value): string {
+    if (!is_scalar($value) && !$value instanceof \Stringable) {
+      return '';
+    }
+
+    return trim((string) $value);
   }
 
 }

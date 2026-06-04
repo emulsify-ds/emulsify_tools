@@ -1,10 +1,20 @@
 # Emulsify Tools module
 
-This module provides Twig helpers used in the [Emulsify Design System](https://github.com/emulsify-ds/) and the Drush child theme generation workflow for Emulsify Drupal 6.x.
+This module provides Emulsify Twig extensions, theme-defined Twig namespaces, child theme generation Drush commands, and deployment commands for Emulsify Drupal favicon packages.
 
 ## Compatibility
 
-Emulsify Tools 1.x is intended for the Emulsify Drupal 6.x child theme generation workflow. The paired Emulsify Drupal 6.x release line supports Drupal `^10.3 || ^11`.
+This module targets Drupal `11.3+`, includes Drupal 12 forward compatibility, and requires PHP `8.4+`. Drupal core development branch coverage is experimental until Drupal 12 beta or stable releases are available.
+
+The bundled Drush commands follow the Drush 13+ autowiring pattern, and the
+codebase now uses PHP 8.4-only syntax where it improves readability.
+
+### Companion theme pairing
+
+- `emulsify_tools` `^2.0` is intended to pair with Emulsify Drupal `^7.0`.
+- The Twig helpers and child theme generator remain broadly useful on their own,
+  but the favicon migration and admin-theme favicon features expect the
+  Emulsify 7.x companion theme APIs to be present.
 
 ## Usage
 
@@ -12,14 +22,112 @@ Emulsify Tools 1.x is intended for the Emulsify Drupal 6.x child theme generatio
 
 Emulsify Tools 1.x provides the supported Drush workflow for generating Emulsify Drupal 6.x child themes. Use either command form:
 
-```
-drush emulsify my_theme
-drush emulsify_tools:bake my_theme
-```
+Child theme generation:
+
+`drush emulsify_tools:bake [theme_name]`
 
 The commands are equivalent. The generated child theme uses `emulsify` as its runtime parent theme and should be created under the Drupal custom theme path expected by the command, such as `web/themes/custom/my_theme` in a Composer-based Drupal project.
 
 Drupal core Starterkit-based generation is being prepared for the Emulsify Drupal 7.x release line. For Emulsify Drupal 6.x, use Emulsify Tools for child theme generation.
+
+Generated favicon deployment:
+
+`drush emulsify_tools:favicon-generate [theme_name]`
+
+`drush emulsify_tools:favicon-status [theme_name]`
+
+`drush emulsify_tools:favicon-reset [theme_name]`
+
+Child theme source repair:
+
+`drush emulsify_tools:repair-favicon-config`
+
+`drush emulsify_tools:repair-favicon-config [theme_machine_name]`
+
+### Generated Favicon Deployment
+
+Emulsify Drupal 7.x owns favicon theme settings, config defaults and schema,
+admin preview UI, frontend head tag attachment, portable SVG source storage, and
+the generated asset references stored in `<theme>.settings`.
+
+Emulsify Tools 2.x owns Drush-facing deployment operations for that workflow.
+Configure the favicon in the Emulsify Drupal theme settings form, export config,
+and run the generate command after config import or deploy so environment-local
+package files exist before traffic reaches the site.
+
+Emulsify Drupal page requests do not generate missing favicon package files.
+After config import, `emulsify_tools:favicon-generate` is the supported
+deployment path for recreating packages from saved portable SVG config.
+
+The favicon commands delegate generation, status, and reset behavior to the
+Emulsify Drupal favicon manager instead of duplicating package logic in this
+module.
+
+The optional admin-theme favicon toggle in this module only reuses an already
+generated Emulsify package on admin routes. It does not replace the Emulsify
+Drupal theme settings UI or frontend head-tag attachment.
+
+#### Deploy/config-import workflow
+
+1. Configure and save favicon settings in the Emulsify Drupal theme settings
+   form for `emulsify` or an Emulsify child theme.
+2. Export and deploy/import configuration as usual.
+3. Run `drush emulsify_tools:favicon-generate my_theme` after config import so
+   the environment-local generated package exists before page requests need it.
+4. Run `drush emulsify_tools:favicon-status my_theme` in deployment diagnostics
+   to confirm dependencies, package state, and portable SVG source state.
+
+#### Command examples
+
+```bash
+drush emulsify_tools:favicon-generate my_theme
+drush emulsify_tools:favicon-status my_theme
+drush emulsify_tools:favicon-reset my_theme
+```
+
+Omit `my_theme` to target the configured default frontend theme. The target must
+be `emulsify` or an Emulsify child theme.
+
+`emulsify_tools:favicon-generate` generates or refreshes the package from the
+saved Emulsify Drupal theme settings. Use it in deployment hooks and
+post-config-import automation.
+
+`emulsify_tools:favicon-status` reports whether generation is enabled, whether
+the package exists, whether GD and Imagick are available, and whether the
+portable SVG source is available for regeneration.
+
+`emulsify_tools:favicon-reset` removes generated package metadata and assets and
+restores the default theme favicon behavior. Configure and save the Emulsify
+Drupal theme settings form again, or rerun `emulsify_tools:favicon-generate`
+after config import, to recreate the package.
+
+### Twig Namespaces
+
+Emulsify themes can register Symfony-style Twig namespaces in their `.info.yml`
+file using the same `components.namespaces` structure supported by the
+Components module:
+
+```yaml
+components:
+  namespaces:
+    atoms: components/01-atoms
+    molecules:
+      - components/02-molecules
+      - src/components/molecules
+    vendor_components: /../vendor/acme/components
+```
+
+Relative paths are resolved from the theme directory. Paths starting with `/`
+are resolved from the Drupal app root. Namespaces are searched in this order:
+
+1. Active theme
+2. Active theme base themes
+3. Default frontend theme, if the active theme is different
+
+Templates can then be referenced with standard Twig namespace syntax such as
+`@atoms/button/button.twig`. Nested component templates are also registered
+by basename, so `@atoms/button.twig` will resolve when the file is uniquely
+named within the namespace.
 
 ### BEM Twig Extension
 
@@ -97,19 +205,96 @@ Can also be used with the BEM Function:
 <div {{ add_attributes(additional_attributes) }}></div>
 ```
 
+### Switch Case Twig Extension
+
+This adds the ability to do a `switch/case` function from within Twig templates. To use:
+
+```twig
+{% switch content.field_name.0 %}
+    {% case "text" %}
+      <p>This appears if the field name value is set to "text"</p>
+    {% case "image" %}
+      <p>This appears if the field name value is set to "image"</p>
+    {% default %}
+      <p>The field text did not match any case.</p>
+{% endswitch %}
+```
+
+Note that the `switch`, `endswitch`, and `case` tags are required and the `default` is optional.
+
+## Updating 6.x to 7.x
+
+Upgrading from Emulsify 6.x to 7.x introduces a new generated favicon workflow.
+Instead of relying only on legacy theme-level favicon settings, Emulsify 7.x
+stores a portable SVG source and generated package metadata in theme settings so
+favicon packages can be regenerated consistently across environments.
+
+### What changes
+
+- Active theme settings gain new favicon keys such as `favicon_source_svg`,
+  `favicon_source_filename`, platform-specific color and padding settings, and
+  generated package metadata fields like `favicon_package_hash`,
+  `favicon_package_path`, and `favicon_package_generated_at`.
+- Installed Emulsify-based themes can be migrated in place by running Drupal
+  database updates. This module provides a post update that backfills missing
+  favicon keys in active `<theme>.settings` config and, when possible, stores a
+  sanitized portable SVG source from the existing managed favicon file.
+- Older generated child themes may still be missing the source files that define
+  those settings for fresh installs and future config exports.
+
+Run `drush updatedb` after upgrading the module so the installed theme settings
+receive the new defaults before exporting configuration.
+
+After exporting or importing those settings, use
+`drush emulsify_tools:favicon-generate [theme_name]` to recreate generated
+package files in each environment. Use
+`drush emulsify_tools:favicon-status [theme_name]` for deployment diagnostics
+and `drush emulsify_tools:favicon-reset [theme_name]` when you intentionally
+want to remove generated package state.
+
+### Child Theme Source Repair
+
+Run the repair command in the Drupal site root to update older Emulsify-based
+child theme codebases:
+
+`drush emulsify_tools:repair-favicon-config`
+
+To target a single child theme:
+
+`drush emulsify_tools:repair-favicon-config my_child_theme`
+
+The command scans Emulsify-based child themes in the current codebase and
+backfills missing favicon entries in:
+
+- `config/install/<theme>.settings.yml`
+- `config/schema/<theme>.schema.yml`
+
+Existing values are preserved. Only missing or `NULL` favicon keys and schema
+definitions are filled in. Review and commit those child theme source-file
+changes after running the command.
+
 ## Development
 
 ---
 
 ### Requires
 
-- [Node.js v12+](http://nodejs.org/)
-- [Yarn Package Manager](https://yarnpkg.com/)
-- [Commitizen](https://github.com/commitizen/cz-cli) for commit standardization, included in install
+- [PHP 8.4+](https://www.php.net/)
+- [Composer 2](https://getcomposer.org/)
+- [Node.js 20.11+](https://nodejs.org/)
 
 ### Initial Setup
 
-1. Run `npm install` to install dependencies. You're done!
+1. Run `composer install` to install the PHPUnit and Drupal development stack.
+2. Run `npm install` to install the lightweight release and commit tooling.
+
+### Validation
+
+- `npm run lint`
+- `composer test:unit`
+- `bash .github/scripts/favicon-command-smoke.sh /path/to/drupal-site [theme_name]`
+  for a prepared integration fixture with Emulsify Drupal 7.x, Emulsify Tools
+  2.x, and favicon source config.
 
 ### Generation Smoke Test
 
@@ -138,11 +323,12 @@ KEEP_FIXTURE=1
 
 ### Committing Changes
 
-To facilitate automatic semantic release versioning, we utilize the [Conventional Changelog](https://github.com/conventional-changelog/conventional-changelog) standard through Commitizen. Follow these steps when commiting your work to ensure a better tomorrow.
+This repository uses [Conventional Commits](https://www.conventionalcommits.org/)
+so semantic-release can determine the next version automatically.
 
 1. Stage your changes, ensuring they encompass exactly what you wish to change, no more.
-2. Run `yarn commit` and follow the prompts to craft the perfect commit message.
-3. _Rejoice!_ For now your commit message will be used to create the changelog for the next version that includes that commit.
+2. Commit using a conventional message such as `fix: repair favicon config sync`.
+3. Run the validation commands above before opening a pull request.
 
 ## Release
 
@@ -155,14 +341,16 @@ There's a two-step process to publish a new release to [the project page](https:
 
 ### Creating a release on GitHub
 
-- Once one or more PRs are merged into the development branch, [create a "Release" PR](https://github.com/emulsify-ds/emulsify_tools/compare/main...feature-branch) to merge the latest from that branch into `main`.
-- As soon as that PR is merged, a [GitHub action](https://github.com/emulsify-ds/emulsify_tools/actions) will kick off to cut a release based on the commit messages in that release.
-  - _Note: This workflow will also push the new tag to drupal.org so that you can select it in the next section._
-- When that is finished, you should see the new release listed on the [Releases page](https://github.com/emulsify-ds/emulsify_tools/releases) for the repository.
+- Merge the release-ready changes into `main`.
+- The [semantic-release workflow](https://github.com/emulsify-ds/emulsify_tools/actions)
+  will calculate the next version from the merged commit messages, create the
+  GitHub release, and push the new tag to Drupal.org.
+- When the workflow completes, confirm the new version appears on the
+  [GitHub Releases page](https://github.com/emulsify-ds/emulsify_tools/releases).
 
 ### Publishing the release to Drupal.org
 
-- Go to the [Releases tab for the Emulsify Twig project](https://www.drupal.org/node/3094752/edit/releases) on drupal.org. (You'll need to be a maintainer to access this page.)
+- Go to the [Releases tab for the Emulsify Tools project](https://www.drupal.org/node/3094752/edit/releases) on drupal.org. (You'll need to be a maintainer to access this page.)
 - Click "Add new release"
 - Select the tag for the latest release and click Next
 - Copy the release notes from the GitHub releases page, and reformat them according to the wysiwyg options

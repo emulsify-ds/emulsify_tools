@@ -6,263 +6,241 @@ namespace Drupal\emulsify_tools;
 
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
+use Symfony\Component\Finder\SplFileInfo;
 
 /**
- * The emulsify subtheme generator.
+ * Generates Emulsify child themes.
  */
-class SubThemeGenerator {
+final class SubThemeGenerator {
 
   /**
-   * The filesystem.
+   * Creates the generator service.
    *
-   * @var \Symfony\Component\Filesystem\Filesystem
+   * @param \Symfony\Component\Filesystem\Filesystem $filesystem
+   *   The Symfony filesystem helper.
    */
-  protected $fs;
+  public function __construct(
+    private readonly Filesystem $filesystem,
+  ) {}
 
   /**
-   * The finder.
+   * Generates a customized child theme in place.
    *
-   * @var \Symfony\Component\Finder\Finder
-   */
-  protected $finder;
-
-  /**
-   * The old machine name.
-   *
-   * @var string
-   */
-  protected $machineNameOld = '';
-
-  /**
-   * The directory.
-   *
-   * @var string
-   */
-  protected $dir = '';
-
-  /**
-   * The machine name.
-   *
-   * @var string
-   */
-  protected $machineName = '';
-
-  /**
-   * The name.
-   *
-   * @var string
-   */
-  protected $name = '';
-
-  /**
-   * Constructs a new subtheme generator.
-   */
-  public function __construct(Filesystem $fs) {
-    $this->fs = $fs;
-    $this->finder = new Finder();
-  }
-
-  /**
-   * Get the directory.
-   *
-   * @return string
-   *   The directory.
-   */
-  public function getDir(): string {
-    return $this->dir;
-  }
-
-  /**
-   * Set the directory.
-   *
-   * @param string $dir
-   *   Directory where a Emulsify starter recipe already copied to.
-   *
-   * @return $this
-   */
-  public function setDir(string $dir) {
-    $this->dir = $dir;
-
-    return $this;
-  }
-
-  /**
-   * Get the machine name.
-   *
-   * @return string
-   *   The machine name.
-   */
-  public function getMachineName(): string {
-    if (!$this->machineName) {
-      return basename($this->getDir());
-    }
-
-    return $this->machineName;
-  }
-
-  /**
-   * Set the machine name.
-   *
+   * @param string $directory
+   *   The destination directory.
    * @param string $machineName
-   *   The machine name.
-   *
-   * @return $this
-   */
-  public function setMachineName(string $machineName) {
-    $this->machineName = $machineName;
-
-    return $this;
-  }
-
-  /**
-   * Get name.
-   *
-   * @return string
-   *   The name.
-   */
-  public function getName(): string {
-    return $this->name;
-  }
-
-  /**
-   * Set name.
-   *
+   *   The new machine name.
    * @param string $name
-   *   The name.
-   *
-   * @return $this
+   *   The new human-readable name.
    */
-  public function setName(string $name) {
-    $this->name = $name;
+  public function generate(string $directory, string $machineName, string $name): void {
+    $originalMachineName = $this->discoverOriginalMachineName($directory);
+    $this->removeStarterkitOnlyFiles($directory, $originalMachineName);
 
-    return $this;
-  }
-
-  /**
-   * Do generation.
-   *
-   * @return $this
-   */
-  public function generate() {
-    return $this
-      ->initMachineNameOld()
-      ->modifyFileContents()
-      ->removeStarterOnlyFiles()
-      ->renameFiles();
-  }
-
-  /**
-   * Initialize the old machine name.
-   *
-   * @return $this
-   */
-  protected function initMachineNameOld() {
-    $dstDir = $this->getDir();
-    $infoFiles = glob("$dstDir/*.info.emulsify.yml");
-
-    $this->machineNameOld = basename(reset($infoFiles), '.info.emulsify.yml');
-
-    return $this;
-  }
-
-  /**
-   * Modify file contents.
-   *
-   * @return $this
-   */
-  protected function modifyFileContents() {
-    $replacementPairs = $this->getFileContentReplacementPairs();
-    foreach ($this->getFilesToMakeReplacements() as $fileName) {
-      $this->modifyFileContent($fileName, $replacementPairs);
+    foreach ($this->getFilesToMakeReplacements($directory) as $fileName) {
+      $this->modifyFileContent($fileName, $this->getFileContentReplacementPairs($machineName, $name));
     }
 
-    return $this;
+    if ($originalMachineName !== $machineName) {
+      // Rename directories first so any file paths that include the old theme
+      // machine name still point at existing parent directories when files are
+      // renamed afterward.
+      $this->renameDirectories($directory, $originalMachineName, $machineName);
+      $this->renameFiles($directory, $originalMachineName, $machineName);
+    }
   }
 
   /**
-   * Remove files that are only used by the starter source.
-   *
-   * @return $this
+   * Removes starterkit-only source metadata from the generated theme copy.
    */
-  protected function removeStarterOnlyFiles() {
-    $this->fs->remove($this->getDir() . '/project.emulsify.json');
+  private function removeStarterkitOnlyFiles(string $directory, string $originalMachineName): void {
+    $starterkitOnlyFiles = [
+      $directory . '/project.emulsify.json',
+      $directory . '/' . $originalMachineName . '.info.emulsify.yml',
+      $directory . '/' . $originalMachineName . '.starterkit.yml',
+    ];
 
-    return $this;
+    foreach ($starterkitOnlyFiles as $fileName) {
+      if ($this->filesystem->exists($fileName)) {
+        $this->filesystem->remove($fileName);
+      }
+    }
+  }
+
+  /**
+   * Finds the source theme's machine name from its info file.
+   *
+   * @param string $directory
+   *   The theme directory.
+   *
+   * @return string
+   *   The original machine name.
+   */
+  private function discoverOriginalMachineName(string $directory): string {
+    $finder = new Finder()
+      ->files()
+      ->depth('== 0')
+      ->in($directory)
+      ->name('*.info.emulsify.yml');
+
+    foreach ($finder as $fileInfo) {
+      if ($fileInfo instanceof SplFileInfo) {
+        return basename($fileInfo->getFilename(), '.info.emulsify.yml');
+      }
+    }
+
+    throw new \RuntimeException(sprintf('No *.info.emulsify.yml file was found in "%s".', $directory));
   }
 
   /**
    * Rename files.
    *
-   * @return $this
+   * @param string $directory
+   *   The theme directory.
+   * @param string $originalMachineName
+   *   The original machine name.
+   * @param string $newMachineName
+   *   The replacement machine name.
    */
-  protected function renameFiles() {
-    $machineNameNew = $this->getMachineName();
-    if ($this->machineNameOld === $machineNameNew) {
-      return $this;
-    }
-
-    foreach ($this->getFileNamesToRename() as $fileName) {
-      $newFileName = str_replace($this->machineNameOld, $machineNameNew, $fileName);
-      if (strpos($newFileName, '.emulsify.') !== FALSE) {
+  private function renameFiles(string $directory, string $originalMachineName, string $newMachineName): void {
+    foreach ($this->getFileNamesToRename($directory, $originalMachineName) as $fileName) {
+      $newFileName = dirname($fileName) . '/' . str_replace($originalMachineName, $newMachineName, basename($fileName));
+      if (str_contains($newFileName, '.emulsify.')) {
         $newFileName = str_replace('.emulsify.', '.', $newFileName);
       }
-      $this->fs->rename($fileName, $newFileName);
+      $this->filesystem->rename($fileName, $newFileName);
     }
+  }
 
-    return $this;
+  /**
+   * Rename directories.
+   *
+   * @param string $directory
+   *   The theme directory.
+   * @param string $originalMachineName
+   *   The original machine name.
+   * @param string $newMachineName
+   *   The replacement machine name.
+   */
+  private function renameDirectories(string $directory, string $originalMachineName, string $newMachineName): void {
+    foreach ($this->getDirectoryNamesToRename($directory, $originalMachineName) as $directoryName) {
+      $newDirectoryName = dirname($directoryName) . '/' . str_replace($originalMachineName, $newMachineName, basename($directoryName));
+      $this->filesystem->rename($directoryName, $newDirectoryName);
+    }
   }
 
   /**
    * Modify file contents.
    *
-   * @return $this
+   * @param string $fileName
+   *   The file name to update.
+   * @param array $replacementPairs
+   *   Replacement pairs keyed by source string.
    */
-  protected function modifyFileContent(string $fileName, array $replacementPairs) {
-    if (!$this->fs->exists($fileName)) {
-      return $this;
+  private function modifyFileContent(string $fileName, array $replacementPairs): void {
+    if (!$this->filesystem->exists($fileName)) {
+      return;
     }
 
-    $this->fs->dumpFile(
+    $this->filesystem->dumpFile(
       $fileName,
-      strtr($this->fileGetContents($fileName), $replacementPairs)
+      strtr($this->fileGetContents($fileName), $replacementPairs),
     );
-
-    return $this;
   }
 
   /**
    * Get file names to rename.
    *
+   * @param string $directory
+   *   The theme directory.
+   * @param string $originalMachineName
+   *   The original machine name.
+   *
    * @return string[]
    *   An array of file names.
    */
-  protected function getFileNamesToRename(): array {
-    // Find all files within the theme that match *{RECIPE_NAME}*.
-    return array_keys(iterator_to_array($this->finder->files()->name("*{$this->machineNameOld}*")->in($this->getDir())));
+  private function getFileNamesToRename(string $directory, string $originalMachineName): array {
+    $fileNames = [];
+    $finder = new Finder()
+      ->files()
+      ->in($directory)
+      ->name("*{$originalMachineName}*");
+
+    foreach ($finder as $fileInfo) {
+      $fileNames[] = $fileInfo->getPathname();
+    }
+
+    return $fileNames;
+  }
+
+  /**
+   * Get directory names to rename.
+   *
+   * @param string $directory
+   *   The theme directory.
+   * @param string $originalMachineName
+   *   The original machine name.
+   *
+   * @return string[]
+   *   An array of directory names ordered deepest-first.
+   */
+  private function getDirectoryNamesToRename(string $directory, string $originalMachineName): array {
+    $directoryNames = [];
+    $finder = new Finder()
+      ->directories()
+      ->in($directory)
+      ->name("*{$originalMachineName}*");
+
+    foreach ($finder as $fileInfo) {
+      $directoryNames[] = $fileInfo->getPathname();
+    }
+
+    usort(
+      $directoryNames,
+      static fn (string $left, string $right): int => strlen($right) <=> strlen($left),
+    );
+
+    return $directoryNames;
   }
 
   /**
    * Get file content replacement pairs.
    *
+   * @param string $machineName
+   *   The new machine name.
+   * @param string $name
+   *   The new human-readable name.
+   *
    * @return string[]
    *   The replacement pairs.
    */
-  protected function getFileContentReplacementPairs(): array {
+  private function getFileContentReplacementPairs(string $machineName, string $name): array {
     return [
-      'EMULSIFY_NAME' => $this->getName(),
-      'drupal:emulsify_tools (^4.0)' => 'drupal:emulsify_tools (^1.0)',
-      'whisk' => $this->getMachineName(),
+      'EMULSIFY_NAME' => $name,
+      'whisk' => $machineName,
     ];
   }
 
   /**
    * Get files to make replacements.
    *
+   * @param string $directory
+   *   The theme directory.
+   *
    * @return string[]
-   *   An array of files to me replacements on.
+   *   An array of files to make replacements on.
    */
-  public function getFilesToMakeReplacements(): array {
-    return array_keys(iterator_to_array($this->finder->files()->in($this->getDir())));
+  private function getFilesToMakeReplacements(string $directory): array {
+    $fileNames = [];
+    $finder = new Finder()
+      ->files()
+      ->in($directory);
+
+    foreach ($finder as $fileInfo) {
+      $fileNames[] = $fileInfo->getPathname();
+    }
+
+    return $fileNames;
   }
 
   /**
@@ -271,10 +249,10 @@ class SubThemeGenerator {
    * @return string
    *   The file contents.
    */
-  protected function fileGetContents(string $fileName): string {
+  private function fileGetContents(string $fileName): string {
     $content = file_get_contents($fileName);
     if ($content === FALSE) {
-      throw new \RuntimeException("Could not read file '$fileName'", 1);
+      throw new \RuntimeException(sprintf("Could not read file '%s'.", $fileName));
     }
 
     return $content;

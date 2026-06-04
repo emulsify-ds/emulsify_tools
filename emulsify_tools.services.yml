@@ -1,16 +1,56 @@
 services:
+  emulsify_tools.filesystem:
+    class: Symfony\Component\Filesystem\Filesystem
+  Symfony\Component\Filesystem\Filesystem:
+    alias: emulsify_tools.filesystem
+  Drupal\emulsify_tools\AdminThemeFaviconManager:
+    class: Drupal\emulsify_tools\AdminThemeFaviconManager
+    autowire: true
+  Drupal\emulsify_tools\Twig\ThemeNamespaceRegistry:
+    class: Drupal\emulsify_tools\Twig\ThemeNamespaceRegistry
+    autowire: true
+  Drupal\emulsify_tools\Twig\Loader\ThemeNamespaceLoader:
+    class: Drupal\emulsify_tools\Twig\Loader\ThemeNamespaceLoader
+    autowire: true
+    tags:
+      - { name: twig.loader, priority: 200 }
+  emulsify_tools.admin_theme_favicon_manager:
+    alias: Drupal\emulsify_tools\AdminThemeFaviconManager
+  emulsify_tools.twig_attribute_manager:
+    class: Drupal\emulsify_tools\TwigAttributeManager
   emulsify_tools.twig.emulsify_tools_add_attributes:
     class: Drupal\emulsify_tools\AddAttributesTwigExtension
-    parent: twig.extension
+    arguments: ['@emulsify_tools.twig_attribute_manager']
     tags:
       - { name: twig.extension }
   emulsify_tools.twig.emulsify_tools_bem:
     class: Drupal\emulsify_tools\BemTwigExtension
-    parent: twig.extension
+    arguments: ['@emulsify_tools.twig_attribute_manager']
     tags:
       - { name: twig.extension }
   emulsify_tools.subtheme_generator:
     class: Drupal\emulsify_tools\SubThemeGenerator
     arguments: ['@emulsify_tools.filesystem']
-  emulsify_tools.filesystem:
-    class: Symfony\Component\Filesystem\Filesystem
+  Drupal\emulsify_tools\Archive\StarterRecipeArchiveExtractor:
+    class: Drupal\emulsify_tools\Archive\StarterRecipeArchiveExtractor
+    autowire: true
+  Drupal\emulsify_tools\Favicon\FaviconSourceSanitizerInterface:
+    alias: emulsify_tools.favicon_source_sanitizer
+  emulsify_tools.favicon_source_sanitizer:
+    class: Drupal\emulsify_tools\Favicon\EmulsifyFaviconSourceSanitizer
+    autowire: true
+  Drupal\emulsify_tools\Favicon\ChildThemeFaviconConfigRepairer:
+    class: Drupal\emulsify_tools\Favicon\ChildThemeFaviconConfigRepairer
+    autowire: true
+  Drupal\emulsify_tools\Favicon\FaviconThemeSettingsBackfill:
+    class: Drupal\emulsify_tools\Favicon\FaviconThemeSettingsBackfill
+    autowire: true
+  Drupal\emulsify_tools\Favicon\FaviconCommandManager:
+    class: Drupal\emulsify_tools\Favicon\FaviconCommandManager
+    autowire: true
+  Drupal\Core\Lock\LockBackendInterface:
+    alias: lock
+  emulsify_tools.twig.switch:
+    class: Drupal\emulsify_tools\SwitchExtension
+    tags:
+      - { name: twig.extension }

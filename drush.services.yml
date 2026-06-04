@@ -1,6 +1,11 @@
 services:
   emulsify_tools.commands:
     class: Drupal\emulsify_tools\Drush\Commands\SubThemeCommands
-    arguments: ['@extension.list.theme', '@plugin.manager.archiver', '@emulsify_tools.subtheme_generator', '@emulsify_tools.filesystem']
+    arguments:
+      - '@extension.list.theme'
+      - '@Drupal\emulsify_tools\Archive\StarterRecipeArchiveExtractor'
+      - '@emulsify_tools.subtheme_generator'
+      - '@emulsify_tools.filesystem'
+      - '@Drupal\emulsify_tools\Favicon\ChildThemeFaviconConfigRepairer'
     tags:
       - { name: drush.command }

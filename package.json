@@ -1,34 +1,33 @@
 {
   "name": "emulsify_tools",
-  "version": "0.0.0",
-  "description": "Toolset of useful Twig extensions and a subtheme generation command",
-  "main": "index.js",
+  "version": "2.0.0",
+  "description": "Toolset of useful Twig extensions, theme namespaces, and child theme generation for Emulsify",
   "engines": {
-    "node": ">=24"
+    "node": ">=20.11"
   },
   "repository": "git@github.com:emulsify-ds/emulsify_tools.git",
   "author": "techninja <james@tn42.com>",
-  "license": "MIT",
+  "license": "GPL-2.0-only",
   "private": false,
   "devDependencies": {
-    "@commitlint/cli": "^20.1.0",
-    "@commitlint/config-conventional": "^20.0.0",
+    "@commitlint/cli": "^20.5.3",
+    "@commitlint/config-conventional": "^20.5.3",
     "@semantic-release/changelog": "^6.0.2",
     "@semantic-release/commit-analyzer": "^13.0.1",
     "@semantic-release/git": "^10.0.1",
-    "@semantic-release/github": "^11.0.6",
+    "@semantic-release/github": "^12.0.6",
     "@semantic-release/release-notes-generator": "^14.1.0",
     "all-contributors-cli": "^6.26.1",
     "husky": "^9.1.7",
-    "lint-staged": "^16.2.3",
-    "semantic-release": "^24.2.9"
+    "lint-staged": "^16.4.0",
+    "semantic-release": "^25.0.3"
   },
   "scripts": {
     "husky:commit-msg": "commitlint --edit $1",
     "husky:pre-commit": "npm run lint",
-    "lint": "npm run lint-js",
-    "lint-fix": "npm run lint-js -- --fix",
-    "lint-js": "eslint --config config/eslint.config.js --no-error-on-unmatched-pattern ./config ./storybook",
+    "lint": "npm run lint:php",
+    "lint-fix": "npm run lint:php",
+    "lint:php": "node scripts/lint-php.mjs",
     "lint-staged": "lint-staged"
   }
 }

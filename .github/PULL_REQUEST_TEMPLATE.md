@@ -1,19 +1,19 @@
-**This PR does the following:**
-- Adds functionality bullet item
-- Fixes this or that bullet item
-  
-### Related Issue(s)
-- [Title of the issue](https://github.com/emulsify-ds/emulsify_tools_/issues/1)
+## Summary
+- Replace this list with the user-facing or maintainer-facing changes in this PR.
 
-### Notes:
-- (optional) Document any intentionally unfinished parts or known issues within this PR
+## Related Issue(s)
+- Link any related issue or write `None`.
 
-### Functional Testing:
-- [ ] Document steps that allow someone to fully test your code changes. Include screenshot and links when appropriate.
+## Validation
+- [ ] `npm run lint`
+- [ ] `composer test:unit`
+- [ ] Manual Drupal verification, when applicable
 
-### Security
-_Security checks that should be reviewed_
+## Notes
+- Document any intentional follow-up work, release notes, or known gaps.
 
-### Accessibility
-_Should this be checked for this feature?_
+## Security
+- Note any configuration, file-system, or output-sanitization considerations.
 
+## Accessibility
+- Note whether any UI or generated markup changes need a manual accessibility review.
