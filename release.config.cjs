@@ -1,5 +1,11 @@
 // release.config.cjs
+const parserOpts = {
+  breakingHeaderPattern: /^(\w+)(?:\(([^)]*)\))?!: (.+)$/,
+  noteKeywords: ['BREAKING CHANGE', 'BREAKING CHANGES', 'BREAKING']
+}
+
 module.exports = {
+  tagFormat: '${version}',
   branches: ['main'],
   repositoryUrl: 'https://github.com/emulsify-ds/emulsify_tools.git',
   plugins: [
@@ -7,18 +13,14 @@ module.exports = {
       '@semantic-release/commit-analyzer',
       {
         preset: 'angular',
-        parserOpts: {
-          noteKeywords: ['BREAKING CHANGE', 'BREAKING CHANGES', 'BREAKING']
-        }
+        parserOpts
       }
     ],
     [
       '@semantic-release/release-notes-generator',
       {
         preset: 'angular',
-        parserOpts: {
-          noteKeywords: ['BREAKING CHANGE', 'BREAKING CHANGES', 'BREAKING']
-        },
+        parserOpts,
         writerOpts: {
           commitsSort: ['subject', 'scope']
         }
