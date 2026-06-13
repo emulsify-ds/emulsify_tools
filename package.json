@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "description": "Toolset of useful Twig extensions, theme namespaces, and child theme generation for Emulsify",
   "engines": {
-    "node": ">=20.11"
+    "node": ">=24.10"
   },
   "repository": "git@github.com:emulsify-ds/emulsify_tools.git",
   "author": "techninja <james@tn42.com>",

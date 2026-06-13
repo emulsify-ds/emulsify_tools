@@ -6,8 +6,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 FIXTURE_DIR="${FIXTURE_DIR:-${TMPDIR:-/tmp}/emulsify-tools-generation-smoke}"
 DRUPAL_VERSION="${DRUPAL_VERSION:-11.3.*}"
-EMULSIFY_VERSION="${EMULSIFY_VERSION:-^6}"
-TOOLS_VERSION="${TOOLS_VERSION:-1.0.99}"
+EMULSIFY_VERSION="${EMULSIFY_VERSION:-^7}"
+TOOLS_VERSION="${TOOLS_VERSION:-2.0.99}"
 DRUSH_VERSION="${DRUSH_VERSION:-^13}"
 THEME_NAME="${THEME_NAME:-watson}"
 DB_URL="${DB_URL:-sqlite://sites/default/files/.ht.sqlite}"
@@ -175,13 +175,15 @@ log "Validating generated child theme files"
 assert_dir "$theme_dir"
 assert_file "$info_file"
 assert_matches "$info_file" '^[[:space:]]*base theme:[[:space:]]*emulsify[[:space:]]*$'
-assert_contains "$info_file" 'drupal:emulsify_tools (^1.0)'
+assert_contains "$info_file" 'drupal:emulsify_tools (^2.0)'
 assert_file "${theme_dir}/config/install/${THEME_NAME}.settings.yml"
 assert_file "${theme_dir}/config/schema/${THEME_NAME}.schema.yml"
+assert_file "${theme_dir}/project.emulsify.json"
+assert_contains "${theme_dir}/project.emulsify.json" '"platform": "drupal"'
+assert_contains "${theme_dir}/project.emulsify.json" "\"machineName\": \"${THEME_NAME}\""
 assert_not_exists "${theme_dir}/whisk.info.emulsify.yml"
 assert_not_exists "${theme_dir}/config/install/whisk.settings.yml"
 assert_not_exists "${theme_dir}/config/schema/whisk.schema.yml"
-assert_not_exists "${theme_dir}/project.emulsify.json"
 
 log "Confirming existing destination fails safely through drush emulsify_tools:bake"
 guard_checksum_before="$(cksum "$info_file")"

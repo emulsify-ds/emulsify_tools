@@ -295,7 +295,7 @@ changes after running the command.
 
 - [PHP 8.4+](https://www.php.net/)
 - [Composer 2](https://getcomposer.org/)
-- [Node.js 20.11+](https://nodejs.org/)
+- [Node.js 24.10+](https://nodejs.org/)
 
 ### Initial Setup
 
@@ -312,13 +312,13 @@ changes after running the command.
 
 ### Generation Smoke Test
 
-To validate the Emulsify Drupal 6.x child theme generation workflow against this checkout, run:
+To validate the Emulsify Drupal 7.x child theme generation workflow against this checkout, run:
 
 ```
 .github/scripts/generation-smoke.sh
 ```
 
-The script creates a disposable Drupal fixture site, installs Emulsify Drupal `^6`, installs this checkout as Emulsify Tools `1.x`, verifies both Drush command help targets, runs `drush emulsify watson`, validates the generated theme files, and enables the generated child theme. It intentionally does not test Drupal core Starterkit generation.
+The script creates a disposable Drupal fixture site, installs Emulsify Drupal `^7`, installs this checkout as Emulsify Tools `2.x`, verifies both Drush command help targets, runs `drush emulsify watson`, validates the generated theme files, and enables the generated child theme. Drupal core Starterkit generation is covered by the Emulsify Drupal theme readiness workflow.
 
 Requirements: Composer and PHP. The default SQLite fixture database also requires `pdo_sqlite`.
 
@@ -327,8 +327,8 @@ Optional environment variables:
 ```
 FIXTURE_DIR=/tmp/emulsify-tools-generation-smoke
 DRUPAL_VERSION=11.3.*
-EMULSIFY_VERSION=^6
-TOOLS_VERSION=1.0.99
+EMULSIFY_VERSION=^7
+TOOLS_VERSION=2.0.99
 DRUSH_VERSION=^13
 THEME_NAME=watson
 DB_URL=sqlite://sites/default/files/.ht.sqlite
