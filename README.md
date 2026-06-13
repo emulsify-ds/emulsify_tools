@@ -357,8 +357,9 @@ There's a two-step process to publish a new release to [the project page](https:
 
 - Merge the release-ready changes into `main`.
 - The [semantic-release workflow](https://github.com/emulsify-ds/emulsify_tools/actions)
-  will calculate the next version from the merged commit messages, create the
-  GitHub release, and push the new tag to Drupal.org.
+  will calculate the next version from the merged commit messages, update
+  `CHANGELOG.md`, create a `[skip ci]` release commit, create the GitHub
+  release, and push the release commit and new tag to Drupal.org.
 - When the workflow completes, confirm the new version appears on the
   [GitHub Releases page](https://github.com/emulsify-ds/emulsify_tools/releases).
 
