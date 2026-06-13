@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\emulsify_tools\Twig;
 
+use Drupal\Core\Cache\Cache;
+use Drupal\Core\Cache\CacheBackendInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Extension\Extension;
 use Drupal\Core\Extension\ModuleExtensionList;
@@ -21,6 +23,16 @@ final class ThemeNamespaceRegistry {
    * Allowed file extensions for namespaced templates.
    */
   private const ALLOWED_FILE_EXTENSIONS = ['twig', 'html', 'svg'];
+
+  /**
+   * Persistent cache ID prefix.
+   */
+  private const CACHE_PREFIX = 'emulsify_tools.theme_namespace_registry';
+
+  /**
+   * Base cache tags shared by all namespace registry entries.
+   */
+  private const CACHE_TAGS = ['config:core.extension', 'config:system.theme'];
 
   /**
    * In-memory namespace cache keyed by active or default theme name.
@@ -59,6 +71,23 @@ final class ThemeNamespaceRegistry {
 
   /**
    * Creates the registry.
+   *
+   * @param string $appRoot
+   *   Drupal application root.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
+   *   Config factory.
+   * @param \Drupal\Core\Extension\ModuleExtensionList $moduleExtensionList
+   *   Module extension list.
+   * @param \Drupal\Core\Extension\ThemeExtensionList $themeExtensionList
+   *   Theme extension list.
+   * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $loggerFactory
+   *   Logger factory.
+   * @param \Drupal\Core\Theme\ThemeManagerInterface $themeManager
+   *   Theme manager.
+   * @param \Drupal\Core\Cache\CacheBackendInterface $cacheBackend
+   *   Persistent cache backend.
+   * @param array<string, mixed> $twigConfig
+   *   Twig configuration parameters.
    */
   public function __construct(
     #[Autowire(param: 'app.root')]
@@ -69,6 +98,10 @@ final class ThemeNamespaceRegistry {
     private readonly ThemeExtensionList $themeExtensionList,
     private readonly LoggerChannelFactoryInterface $loggerFactory,
     private readonly ThemeManagerInterface $themeManager,
+    #[Autowire(service: 'cache.emulsify_tools')]
+    private readonly CacheBackendInterface $cacheBackend,
+    #[Autowire(param: 'twig.config')]
+    private readonly array $twigConfig,
   ) {}
 
   /**
@@ -124,26 +157,57 @@ final class ThemeNamespaceRegistry {
    *   A map of Twig namespace references to filesystem paths.
    */
   private function getTemplateRegistry(string $themeName): array {
-    return $this->templatesByTheme[$themeName] ??= $this->buildTemplateRegistry($themeName);
+    if (isset($this->templatesByTheme[$themeName])) {
+      return $this->templatesByTheme[$themeName];
+    }
+
+    $namespaces = $this->getNamespaces($themeName);
+    if (!$this->shouldBypassPersistentCache()) {
+      $cacheId = $this->getTemplateRegistryCacheId($themeName);
+      $signature = $this->getTemplateRegistryCacheSignature($namespaces);
+      $cachedTemplates = $this->getCachedTemplates($cacheId, $signature);
+      if ($cachedTemplates !== NULL) {
+        return $this->templatesByTheme[$themeName] = $cachedTemplates;
+      }
+
+      $registryData = $this->buildTemplateRegistryData($themeName, $namespaces);
+      $this->cacheBackend->set($cacheId, [
+        'signature' => $signature,
+        'templates' => $registryData['templates'],
+        'directories' => $registryData['directories'],
+      ], Cache::PERMANENT, $this->getCacheTags($themeName));
+      return $this->templatesByTheme[$themeName] = $registryData['templates'];
+    }
+
+    $registryData = $this->buildTemplateRegistryData($themeName, $namespaces);
+    return $this->templatesByTheme[$themeName] = $registryData['templates'];
   }
 
   /**
-   * Builds a template registry for a theme and its base themes.
+   * Builds template registry data from known namespace paths.
    *
-   * @return array<string, string>
-   *   A map of Twig namespace references to filesystem paths.
+   * @param string $themeName
+   *   Theme machine name.
+   * @param array<string, string[]> $namespaces
+   *   Namespace paths keyed by namespace name.
+   *
+   * @return array{templates: array<string, string>, directories: array<string, string>}
+   *   Template paths and directory mtime tokens.
    */
-  private function buildTemplateRegistry(string $themeName): array {
-    $registry = [];
+  private function buildTemplateRegistryData(string $themeName, array $namespaces): array {
+    $templates = [];
+    $directories = [];
 
-    foreach ($this->getNamespaces($themeName) as $namespace => $paths) {
+    foreach ($namespaces as $namespace => $paths) {
       foreach ($paths as $path) {
         if (!is_dir($path) || !is_readable($path)) {
           $this->logMissingPath($themeName, $namespace, $path);
           continue;
         }
 
-        foreach ($this->findTemplateFiles($path) as $filePath) {
+        $discovery = $this->findTemplateFiles($path);
+        $directories += $discovery['directories'];
+        foreach ($discovery['files'] as $filePath) {
           $relativePath = ltrim(substr($filePath, strlen(rtrim($path, '/\\'))), '/\\');
           if ($relativePath === '') {
             continue;
@@ -158,13 +222,16 @@ final class ThemeNamespaceRegistry {
           ];
 
           foreach ($templateNames as $templateName) {
-            $registry[$templateName] ??= $filePath;
+            $templates[$templateName] ??= $filePath;
           }
         }
       }
     }
 
-    return $registry;
+    return [
+      'templates' => $templates,
+      'directories' => $directories,
+    ];
   }
 
   /**
@@ -174,7 +241,241 @@ final class ThemeNamespaceRegistry {
    *   A map of namespace names to filesystem paths.
    */
   private function getNamespaces(string $themeName): array {
-    return $this->namespacesByTheme[$themeName] ??= $this->buildNamespaces($themeName);
+    if (isset($this->namespacesByTheme[$themeName])) {
+      return $this->namespacesByTheme[$themeName];
+    }
+
+    if (!$this->shouldBypassPersistentCache()) {
+      $cacheId = $this->getNamespacesCacheId($themeName);
+      $signature = $this->getNamespacesCacheSignature($themeName);
+      $cachedNamespaces = $this->getCachedNamespaces($cacheId, $signature);
+      if ($cachedNamespaces !== NULL) {
+        return $this->namespacesByTheme[$themeName] = $cachedNamespaces;
+      }
+
+      $namespaces = $this->buildNamespaces($themeName);
+      $this->cacheBackend->set($cacheId, [
+        'signature' => $signature,
+        'namespaces' => $namespaces,
+      ], Cache::PERMANENT, $this->getCacheTags($themeName));
+      return $this->namespacesByTheme[$themeName] = $namespaces;
+    }
+
+    return $this->namespacesByTheme[$themeName] = $this->buildNamespaces($themeName);
+  }
+
+  /**
+   * Returns whether persistent cache should be bypassed for Twig development.
+   */
+  private function shouldBypassPersistentCache(): bool {
+    return !empty($this->twigConfig['debug']) || !empty($this->twigConfig['auto_reload']);
+  }
+
+  /**
+   * Returns a cached namespace list when the signature still matches.
+   *
+   * @return array<string, string[]>|null
+   *   Cached namespace paths, or NULL when the item is missing or invalid.
+   */
+  private function getCachedNamespaces(string $cacheId, string $signature): ?array {
+    $cacheItem = $this->cacheBackend->get($cacheId);
+    if ($cacheItem === FALSE) {
+      return NULL;
+    }
+
+    $data = $cacheItem->data ?? NULL;
+    if (!is_array($data) || ($data['signature'] ?? NULL) !== $signature) {
+      return NULL;
+    }
+
+    return $this->validateCachedNamespaces($data['namespaces'] ?? NULL);
+  }
+
+  /**
+   * Returns a cached template registry when the signature still matches.
+   *
+   * @return array<string, string>|null
+   *   Cached template paths, or NULL when the item is missing or invalid.
+   */
+  private function getCachedTemplates(string $cacheId, string $signature): ?array {
+    $cacheItem = $this->cacheBackend->get($cacheId);
+    if ($cacheItem === FALSE) {
+      return NULL;
+    }
+
+    $data = $cacheItem->data ?? NULL;
+    if (!is_array($data) || ($data['signature'] ?? NULL) !== $signature) {
+      return NULL;
+    }
+
+    if (!$this->validateCachedDirectories($data['directories'] ?? NULL)) {
+      return NULL;
+    }
+
+    return $this->validateCachedTemplates($data['templates'] ?? NULL);
+  }
+
+  /**
+   * Validates cached namespace data before using it.
+   *
+   * @return array<string, string[]>|null
+   *   Validated namespace data, or NULL when the shape is invalid.
+   */
+  private function validateCachedNamespaces(mixed $namespaces): ?array {
+    if (!is_array($namespaces)) {
+      return NULL;
+    }
+
+    $validated = [];
+    foreach ($namespaces as $namespace => $paths) {
+      if (!is_string($namespace) || !is_array($paths)) {
+        return NULL;
+      }
+
+      $validatedPaths = [];
+      foreach ($paths as $path) {
+        if (!is_string($path)) {
+          return NULL;
+        }
+        $validatedPaths[] = $path;
+      }
+
+      $validated[$namespace] = $validatedPaths;
+    }
+
+    return $validated;
+  }
+
+  /**
+   * Validates cached template registry data before using it.
+   *
+   * @return array<string, string>|null
+   *   Validated template registry data, or NULL when the shape is invalid.
+   */
+  private function validateCachedTemplates(mixed $templates): ?array {
+    if (!is_array($templates)) {
+      return NULL;
+    }
+
+    $validated = [];
+    foreach ($templates as $template => $path) {
+      if (!is_string($template) || !is_string($path)) {
+        return NULL;
+      }
+      $validated[$template] = $path;
+    }
+
+    return $validated;
+  }
+
+  /**
+   * Validates cached template directory mtime tokens before using them.
+   */
+  private function validateCachedDirectories(mixed $directories): bool {
+    if (!is_array($directories)) {
+      return FALSE;
+    }
+
+    foreach ($directories as $path => $mtime) {
+      if (!is_string($path) || !is_string($mtime)) {
+        return FALSE;
+      }
+
+      if ($this->getPathMtime($path) !== $mtime) {
+        return FALSE;
+      }
+    }
+
+    return TRUE;
+  }
+
+  /**
+   * Returns the namespace cache ID for a theme.
+   */
+  private function getNamespacesCacheId(string $themeName): string {
+    return self::CACHE_PREFIX . ':namespaces:' . $themeName;
+  }
+
+  /**
+   * Returns the template registry cache ID for a theme.
+   */
+  private function getTemplateRegistryCacheId(string $themeName): string {
+    return self::CACHE_PREFIX . ':templates:' . $themeName;
+  }
+
+  /**
+   * Returns a cache signature for namespace definitions.
+   */
+  private function getNamespacesCacheSignature(string $themeName): string {
+    $themes = $this->themeExtensionList->getList();
+    $theme = $themes[$themeName] ?? NULL;
+    if (!$theme instanceof Extension) {
+      return 'missing';
+    }
+
+    $parts = [];
+    foreach ($this->getThemeInheritanceChain($theme) as $themeExtension) {
+      $parts[] = implode(':', [
+        $themeExtension->getName(),
+        $themeExtension->getPathname(),
+        $this->getPathMtime($this->appRoot . '/' . $themeExtension->getPathname()),
+      ]);
+    }
+
+    return hash('sha256', implode('|', $parts));
+  }
+
+  /**
+   * Returns a cache signature for the template registry.
+   *
+   * @param array<string, string[]> $namespaces
+   *   Namespace paths keyed by namespace name.
+   */
+  private function getTemplateRegistryCacheSignature(array $namespaces): string {
+    $parts = [];
+    foreach ($namespaces as $namespace => $paths) {
+      foreach ($paths as $delta => $path) {
+        $parts[] = implode(':', [
+          $namespace,
+          (string) $delta,
+          $path,
+          $this->getPathMtime($path),
+        ]);
+      }
+    }
+
+    return hash('sha256', implode('|', $parts));
+  }
+
+  /**
+   * Returns cache tags for a theme namespace registry entry.
+   *
+   * @return list<string>
+   *   Cache tags.
+   */
+  private function getCacheTags(string $themeName): array {
+    $themeSettings = [];
+    $themes = $this->themeExtensionList->getList();
+    $theme = $themes[$themeName] ?? NULL;
+    if ($theme instanceof Extension) {
+      foreach ($this->getThemeInheritanceChain($theme) as $themeExtension) {
+        $themeSettings[] = $themeExtension->getName() . '.settings';
+      }
+    }
+
+    return Cache::mergeTags(self::CACHE_TAGS, Cache::buildTags('config', $themeSettings));
+  }
+
+  /**
+   * Returns a filesystem path mtime token for cache signatures.
+   */
+  private function getPathMtime(string $path): string {
+    if (!file_exists($path)) {
+      return 'missing';
+    }
+
+    $mtime = filemtime($path);
+    return $mtime === FALSE ? 'missing' : (string) $mtime;
   }
 
   /**
@@ -462,22 +763,35 @@ final class ThemeNamespaceRegistry {
   /**
    * Returns all supported template files in a namespace directory.
    *
-   * @return string[]
-   *   Sorted filesystem paths.
+   * @return array{files: string[], directories: array<string, string>}
+   *   Sorted filesystem paths and directory mtime tokens.
    */
   private function findTemplateFiles(string $path): array {
     $files = [];
+    $directories = [
+      str_replace('\\', '/', $path) => $this->getPathMtime($path),
+    ];
 
     try {
       $iterator = new \RecursiveIteratorIterator(
         new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS),
+        \RecursiveIteratorIterator::SELF_FIRST,
       );
     }
     catch (\UnexpectedValueException) {
-      return [];
+      return [
+        'files' => [],
+        'directories' => $directories,
+      ];
     }
 
     foreach ($iterator as $fileInfo) {
+      if ($fileInfo->isDir()) {
+        $directoryPath = str_replace('\\', '/', $fileInfo->getPathname());
+        $directories[$directoryPath] = $this->getPathMtime($directoryPath);
+        continue;
+      }
+
       if (!$fileInfo->isFile()) {
         continue;
       }
@@ -490,8 +804,12 @@ final class ThemeNamespaceRegistry {
     }
 
     sort($files);
+    ksort($directories);
 
-    return $files;
+    return [
+      'files' => $files,
+      'directories' => $directories,
+    ];
   }
 
 }

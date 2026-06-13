@@ -1,4 +1,10 @@
 services:
+  cache.emulsify_tools:
+    class: Drupal\Core\Cache\CacheBackendInterface
+    tags:
+      - { name: cache.bin }
+    factory: ['@cache_factory', 'get']
+    arguments: [emulsify_tools]
   emulsify_tools.filesystem:
     class: Symfony\Component\Filesystem\Filesystem
   Symfony\Component\Filesystem\Filesystem:

@@ -90,6 +90,8 @@ abstract class EmulsifyToolsKernelTestBase extends KernelTestBase {
         new Reference('extension.list.theme'),
         new Reference('logger.factory'),
         new Reference('theme.manager'),
+        new Reference('cache.default'),
+        '%twig.config%',
       ]);
 
     $container->register(ThemeNamespaceLoader::class, ThemeNamespaceLoader::class)
