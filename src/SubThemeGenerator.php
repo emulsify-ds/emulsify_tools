@@ -55,7 +55,6 @@ final class SubThemeGenerator {
    */
   private function removeStarterkitOnlyFiles(string $directory, string $originalMachineName): void {
     $starterkitOnlyFiles = [
-      $directory . '/project.emulsify.json',
       $directory . '/' . $originalMachineName . '.info.emulsify.yml',
       $directory . '/' . $originalMachineName . '.starterkit.yml',
     ];

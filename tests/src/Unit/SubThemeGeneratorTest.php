@@ -73,7 +73,7 @@ final class SubThemeGeneratorTest extends UnitTestCase {
     );
     $this->writeFile(
       $themeDirectory . '/project.emulsify.json',
-      "{}\n",
+      "{\"project\":{\"machineName\":\"whisk\",\"platform\":\"drupal\"}}\n",
     );
     $this->writeFile(
       $themeDirectory . '/components/whisk-parent/whisk-child/whisk-template.twig',
@@ -89,7 +89,11 @@ final class SubThemeGeneratorTest extends UnitTestCase {
 
     self::assertFileDoesNotExist($themeDirectory . '/whisk.info.emulsify.yml');
     self::assertFileDoesNotExist($themeDirectory . '/whisk.starterkit.yml');
-    self::assertFileDoesNotExist($themeDirectory . '/project.emulsify.json');
+    self::assertFileExists($themeDirectory . '/project.emulsify.json');
+    self::assertSame(
+      "{\"project\":{\"machineName\":\"new_theme\",\"platform\":\"drupal\"}}\n",
+      $this->readFile($themeDirectory . '/project.emulsify.json'),
+    );
     self::assertFileExists($themeDirectory . '/new_theme.info.yml');
     self::assertSame("name: New Theme\n", $this->readFile($themeDirectory . '/new_theme.info.yml'));
 

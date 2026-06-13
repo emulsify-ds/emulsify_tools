@@ -20,15 +20,29 @@ codebase now uses PHP 8.4-only syntax where it improves readability.
 
 ### Child theme generation
 
-Emulsify Tools 1.x provides the supported Drush workflow for generating Emulsify Drupal 6.x child themes. Use either command form:
+Emulsify Tools 2.x provides the supported Drush workflow for generating
+Emulsify Drupal 7.x child themes from the Whisk starter source bundled with the
+installed `emulsify` parent theme.
 
-Child theme generation:
+Use either command form:
 
 `drush emulsify_tools:bake [theme_name]`
 
+`drush emulsify [theme_name]`
+
 The commands are equivalent. The generated child theme uses `emulsify` as its runtime parent theme and should be created under the Drupal custom theme path expected by the command, such as `web/themes/custom/my_theme` in a Composer-based Drupal project.
 
-Drupal core Starterkit-based generation is being prepared for the Emulsify Drupal 7.x release line. For Emulsify Drupal 6.x, use Emulsify Tools for child theme generation.
+Drupal core Starterkit-based generation is also supported by Emulsify Drupal 7.x
+for projects that prefer Drupal core's standard command:
+
+```bash
+php web/core/scripts/drupal generate-theme my_theme --starterkit whisk --path themes/custom
+```
+
+Both generation paths keep `emulsify` as the runtime parent theme and preserve
+`project.emulsify.json` so Emulsify Core can identify the generated Drupal
+project structure. The bundled `whisk` theme is generation-only starter source;
+enable the generated child theme, not `whisk` itself.
 
 Generated favicon deployment:
 
