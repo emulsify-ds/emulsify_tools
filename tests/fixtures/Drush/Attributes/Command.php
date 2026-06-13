@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Drush\Attributes;
 
+/**
+ * Defines a Drush command attribute fixture.
+ */
 #[\Attribute(\Attribute::TARGET_METHOD)]
 final class Command {
 

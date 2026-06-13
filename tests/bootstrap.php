@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * @file
+ * Test suite bootstrap for Emulsify Tools.
+ */
+
 declare(strict_types=1);
 
 $autoloadCandidates = array_filter([

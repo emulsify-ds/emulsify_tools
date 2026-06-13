@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * @file
+ * Post update hooks for Emulsify Tools.
+ */
+
 declare(strict_types=1);
 
 use Drupal\emulsify_tools\Favicon\FaviconThemeSettingsBackfill;

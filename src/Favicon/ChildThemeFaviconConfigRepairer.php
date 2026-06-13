@@ -51,9 +51,13 @@ final class ChildThemeFaviconConfigRepairer {
    *   inspected_count: int,
    *   updated_count: int,
    *   unchanged_count: int,
-   *   updated_themes: array<string, array{path: string, install: string, schema: string}>,
+   *   updated_themes: array<string, array{
+   *     path: string,
+   *     install: string,
+   *     schema: string
+   *   }>,
    *   errors: array<string, string>
-   * }
+   *   }
    *   A summary of the repair results.
    */
   public function repair(?string $requestedThemeName = NULL): array {

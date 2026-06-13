@@ -73,8 +73,12 @@ final class AdminThemeFaviconHooks {
     self::service()->doSubmitAdminThemeToggle($form_state);
   }
 
+  // phpcs:disable DrupalPractice.Objects.UnusedPrivateMethod.UnusedMethod
+
   /**
    * Persists the admin-theme toggle for the configured frontend theme.
+   *
+   * Static FAPI callbacks resolve the service instance before calling this.
    */
   private function doSubmitAdminThemeToggle(FormStateInterface $form_state): void {
     $themeName = $this->resolveThemeName($form_state);
@@ -92,6 +96,8 @@ final class AdminThemeFaviconHooks {
       (bool) $enabled,
     );
   }
+
+  // phpcs:enable DrupalPractice.Objects.UnusedPrivateMethod.UnusedMethod
 
   /**
    * Resolves the theme being configured on the system theme settings form.

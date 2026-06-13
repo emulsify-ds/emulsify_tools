@@ -152,8 +152,8 @@ final class ThemeNamespaceRegistry {
           $relativePath = str_replace('\\', '/', $relativePath);
           $templateNames = [
             '@' . $namespace . '/' . $relativePath,
-            // Keep the basename alias for legacy includes such as
-            // @components/button.twig when the filename is unique.
+            // Keep the basename alias for legacy includes when the filename
+            // is unique, such as @components/button.twig.
             '@' . $namespace . '/' . basename($filePath),
           ];
 

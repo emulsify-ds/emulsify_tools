@@ -212,44 +212,62 @@ final class AdminThemeFaviconManager {
     $themeColor = $settings['favicon_android_background_color'];
     $iconName = trim((string) $settings['favicon_ios_icon_name']);
 
-    $attachments['#attached']['html_head_link'][] = [[
-      'rel' => 'icon',
-      'href' => $this->fileUrlGenerator->generateString($packagePath . '/favicon.ico'),
-      'sizes' => 'any',
-    ], FALSE];
-
-    $attachments['#attached']['html_head_link'][] = [[
-      'rel' => 'icon',
-      'type' => 'image/svg+xml',
-      'href' => $this->fileUrlGenerator->generateString($packagePath . '/favicon.svg'),
-    ], FALSE];
-
-    $attachments['#attached']['html_head_link'][] = [[
-      'rel' => 'apple-touch-icon',
-      'href' => $this->fileUrlGenerator->generateString($packagePath . '/apple-touch-icon.png'),
-    ], FALSE];
-
-    $attachments['#attached']['html_head_link'][] = [[
-      'rel' => 'manifest',
-      'href' => $this->fileUrlGenerator->generateString($packagePath . '/site.webmanifest'),
-    ], FALSE];
-
-    $attachments['#attached']['html_head'][] = [[
-      '#tag' => 'meta',
-      '#attributes' => [
-        'name' => 'theme-color',
-        'content' => $themeColor,
+    $attachments['#attached']['html_head_link'][] = [
+      [
+        'rel' => 'icon',
+        'href' => $this->fileUrlGenerator->generateString($packagePath . '/favicon.ico'),
+        'sizes' => 'any',
       ],
-    ], 'emulsify_tools_admin_favicon_theme_color'];
+      FALSE,
+    ];
 
-    if ($iconName !== '') {
-      $attachments['#attached']['html_head'][] = [[
+    $attachments['#attached']['html_head_link'][] = [
+      [
+        'rel' => 'icon',
+        'type' => 'image/svg+xml',
+        'href' => $this->fileUrlGenerator->generateString($packagePath . '/favicon.svg'),
+      ],
+      FALSE,
+    ];
+
+    $attachments['#attached']['html_head_link'][] = [
+      [
+        'rel' => 'apple-touch-icon',
+        'href' => $this->fileUrlGenerator->generateString($packagePath . '/apple-touch-icon.png'),
+      ],
+      FALSE,
+    ];
+
+    $attachments['#attached']['html_head_link'][] = [
+      [
+        'rel' => 'manifest',
+        'href' => $this->fileUrlGenerator->generateString($packagePath . '/site.webmanifest'),
+      ],
+      FALSE,
+    ];
+
+    $attachments['#attached']['html_head'][] = [
+      [
         '#tag' => 'meta',
         '#attributes' => [
-          'name' => 'apple-mobile-web-app-title',
-          'content' => $iconName,
+          'name' => 'theme-color',
+          'content' => $themeColor,
         ],
-      ], 'emulsify_tools_admin_favicon_ios_title'];
+      ],
+      'emulsify_tools_admin_favicon_theme_color',
+    ];
+
+    if ($iconName !== '') {
+      $attachments['#attached']['html_head'][] = [
+        [
+          '#tag' => 'meta',
+          '#attributes' => [
+            'name' => 'apple-mobile-web-app-title',
+            'content' => $iconName,
+          ],
+        ],
+        'emulsify_tools_admin_favicon_ios_title',
+      ];
     }
   }
 

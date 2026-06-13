@@ -78,20 +78,26 @@ final class AdminThemeFaviconManagerTest extends UnitTestCase {
           [['rel' => 'preconnect']],
         ],
         'html_head' => [
-          [[
-            '#tag' => 'meta',
-            '#attributes' => [
-              'name' => 'theme-color',
-              'content' => '#000000',
+          [
+            [
+              '#tag' => 'meta',
+              '#attributes' => [
+                'name' => 'theme-color',
+                'content' => '#000000',
+              ],
             ],
-          ], 'core_theme_color'],
-          [[
-            '#tag' => 'meta',
-            '#attributes' => [
-              'name' => 'robots',
-              'content' => 'noindex',
+            'core_theme_color',
+          ],
+          [
+            [
+              '#tag' => 'meta',
+              '#attributes' => [
+                'name' => 'robots',
+                'content' => 'noindex',
+              ],
             ],
-          ], 'robots'],
+            'robots',
+          ],
         ],
       ],
     ];
@@ -226,6 +232,16 @@ final class AdminThemeFaviconManagerTest extends UnitTestCase {
    *   Theme setting values keyed by setting name.
    * @param array<string, object> $themes
    *   Theme definitions keyed by machine name.
+   * @param string $activeTheme
+   *   The currently active theme.
+   * @param string $adminTheme
+   *   The configured admin theme.
+   * @param string $defaultTheme
+   *   The configured default theme.
+   * @param string $siteName
+   *   The configured site name.
+   * @param bool $isAdminRoute
+   *   Whether the current request is for an admin route.
    */
   private function createManager(
     array $enabledThemes = [],

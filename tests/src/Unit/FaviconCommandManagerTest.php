@@ -144,6 +144,8 @@ final class FaviconCommandManagerTest extends UnitTestCase {
   /**
    * Creates the command manager under test.
    *
+   * @param string $defaultTheme
+   *   The configured default theme.
    * @param array<string, object> $themes
    *   Themes available in the current codebase.
    */

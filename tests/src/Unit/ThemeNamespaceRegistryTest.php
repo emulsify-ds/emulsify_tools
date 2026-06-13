@@ -24,7 +24,6 @@ final class ThemeNamespaceRegistryTest extends UnitTestCase {
    *   The template name to validate.
    * @param bool $expected
    *   The expected validation result.
-   *
    */
   #[DataProvider('providerTemplateNames')]
   public function testIsValidTemplateName(string $templateName, bool $expected): void {

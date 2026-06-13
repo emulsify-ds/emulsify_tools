@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="emulsify_tools">
+  <description>PHP_CodeSniffer configuration for Emulsify Tools.</description>
+
+  <arg name="basepath" value="."/>
+  <arg name="extensions" value="engine,inc,install,module,php,profile,test,theme,yml"/>
+
+  <file>.</file>
+
+  <exclude-pattern>*/vendor/*</exclude-pattern>
+  <exclude-pattern>*/node_modules/*</exclude-pattern>
+  <exclude-pattern>*/\.phpstan/*</exclude-pattern>
+  <exclude-pattern>*/\.phpunit.cache/*</exclude-pattern>
+
+  <rule ref="Drupal"/>
+  <rule ref="DrupalPractice"/>
+</ruleset>
