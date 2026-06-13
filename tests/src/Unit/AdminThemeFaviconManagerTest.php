@@ -221,6 +221,7 @@ final class AdminThemeFaviconManagerTest extends UnitTestCase {
     $manager->applyToAdminPageAttachments($attachments);
 
     self::assertSame('/misc/favicon.ico', $attachments['#attached']['html_head_link'][0][0]['href']);
+    $this->assertAdminFaviconCacheability($attachments);
   }
 
   /**
@@ -310,6 +311,19 @@ final class AdminThemeFaviconManagerTest extends UnitTestCase {
       ->willReturnCallback(static fn (string $key): mixed => $values[$key] ?? NULL);
 
     return $config;
+  }
+
+  /**
+   * Asserts cacheability metadata for the admin favicon decision.
+   *
+   * @param array<string|int, mixed> $attachments
+   *   Page attachments.
+   */
+  private function assertAdminFaviconCacheability(array $attachments): void {
+    self::assertContains('config:emulsify_tools.settings', $attachments['#cache']['tags']);
+    self::assertContains('config:system.theme', $attachments['#cache']['tags']);
+    self::assertContains('config:sfasu.settings', $attachments['#cache']['tags']);
+    self::assertContains('route', $attachments['#cache']['contexts']);
   }
 
 }

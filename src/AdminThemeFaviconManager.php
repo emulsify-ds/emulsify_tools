@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\emulsify_tools;
 
+use Drupal\Core\Cache\Cache;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Extension\ThemeExtensionList;
 use Drupal\Core\Extension\ThemeSettingsProvider;
@@ -122,11 +123,13 @@ final class AdminThemeFaviconManager {
    *   The page attachments array.
    */
   public function applyToAdminPageAttachments(array &$attachments): void {
+    $frontendTheme = $this->getDefaultFrontendTheme();
+    $this->applyAttachmentCacheability($attachments, $frontendTheme);
+
     if (!$this->adminContext->isAdminRoute()) {
       return;
     }
 
-    $frontendTheme = $this->getDefaultFrontendTheme();
     if ($frontendTheme === '' || !$this->supportsTheme($frontendTheme) || !$this->isEnabledForTheme($frontendTheme)) {
       return;
     }
@@ -142,6 +145,75 @@ final class AdminThemeFaviconManager {
 
     $this->removeConflictingLinks($attachments);
     $this->attachGeneratedPackage($attachments, $settings);
+  }
+
+  /**
+   * Applies cache metadata for the admin favicon decision.
+   *
+   * @param array<string|int, mixed> $attachments
+   *   The page attachments array.
+   * @param string $frontendTheme
+   *   The configured default frontend theme.
+   */
+  private function applyAttachmentCacheability(array &$attachments, string $frontendTheme): void {
+    $tags = [
+      'config:' . self::CONFIG_NAME,
+      'config:system.theme',
+    ];
+    if ($frontendTheme !== '') {
+      $tags[] = 'config:' . $frontendTheme . '.settings';
+    }
+
+    $cache = $attachments['#cache'] ?? [];
+    if (!is_array($cache)) {
+      $cache = [];
+    }
+
+    $existingTags = $this->normalizeStringList($cache['tags'] ?? NULL);
+    $existingContexts = $this->normalizeStringList($cache['contexts'] ?? NULL);
+
+    $cache['tags'] = Cache::mergeTags($existingTags, $tags);
+    $cache['contexts'] = $this->mergeCacheContexts($existingContexts, ['route']);
+    $attachments['#cache'] = $cache;
+  }
+
+  /**
+   * Merges cache context lists.
+   *
+   * @param string[] $existingContexts
+   *   Existing cache contexts.
+   * @param string[] $contexts
+   *   Cache contexts to add.
+   *
+   * @return list<string>
+   *   Merged cache contexts.
+   */
+  private function mergeCacheContexts(array $existingContexts, array $contexts): array {
+    return array_values(array_unique(array_merge(
+      $existingContexts,
+      $contexts,
+    )));
+  }
+
+  /**
+   * Normalizes an attachment cache metadata value to a string list.
+   *
+   * @return list<string>
+   *   String values.
+   */
+  private function normalizeStringList(mixed $values): array {
+    if (!is_array($values)) {
+      return [];
+    }
+
+    $strings = [];
+    foreach ($values as $value) {
+      if (is_string($value)) {
+        $strings[] = $value;
+      }
+    }
+
+    return $strings;
   }
 
   /**

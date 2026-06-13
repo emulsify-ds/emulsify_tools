@@ -48,6 +48,7 @@ final class AdminThemeFaviconKernelTest extends EmulsifyToolsKernelTestBase {
     self::assertSame('#aabbcc', $metas['theme-color']);
     self::assertSame('Kernel Admin', $metas['apple-mobile-web-app-title']);
     self::assertSame('noindex', $metas['robots']);
+    $this->assertAdminFaviconCacheability($attachments);
   }
 
   /**
@@ -59,10 +60,11 @@ final class AdminThemeFaviconKernelTest extends EmulsifyToolsKernelTestBase {
     $this->setActiveTheme('stark');
 
     $attachments = $this->buildConflictingAttachments();
-    $expected = $attachments;
+    $expectedAttached = $attachments['#attached'];
     $this->hooks()->pageAttachmentsAlter($attachments);
 
-    self::assertSame($expected, $attachments);
+    self::assertSame($expectedAttached, $attachments['#attached']);
+    $this->assertAdminFaviconCacheability($attachments);
   }
 
   /**
@@ -74,10 +76,11 @@ final class AdminThemeFaviconKernelTest extends EmulsifyToolsKernelTestBase {
     $this->setActiveTheme('stark');
 
     $attachments = $this->buildConflictingAttachments();
-    $expected = $attachments;
+    $expectedAttached = $attachments['#attached'];
     $this->hooks()->pageAttachmentsAlter($attachments);
 
-    self::assertSame($expected, $attachments);
+    self::assertSame($expectedAttached, $attachments['#attached']);
+    $this->assertAdminFaviconCacheability($attachments);
   }
 
   /**
@@ -240,6 +243,19 @@ final class AdminThemeFaviconKernelTest extends EmulsifyToolsKernelTestBase {
     }
 
     return $metas;
+  }
+
+  /**
+   * Asserts cacheability metadata for the admin favicon decision.
+   *
+   * @param array<string|int, mixed> $attachments
+   *   Page attachments.
+   */
+  private function assertAdminFaviconCacheability(array $attachments): void {
+    self::assertContains('config:emulsify_tools.settings', $attachments['#cache']['tags']);
+    self::assertContains('config:system.theme', $attachments['#cache']['tags']);
+    self::assertContains('config:emulsify_child.settings', $attachments['#cache']['tags']);
+    self::assertContains('route', $attachments['#cache']['contexts']);
   }
 
 }
