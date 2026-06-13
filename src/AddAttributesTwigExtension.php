@@ -39,7 +39,7 @@ final class AddAttributesTwigExtension extends AbstractExtension {
   /**
    * Merges additional attributes into the current Twig attributes.
    *
-   * @param array $context
+   * @param array<string, mixed> $context
    *   The Twig render context.
    * @param mixed $additionalAttributes
    *   Additional attributes to merge into the current context.

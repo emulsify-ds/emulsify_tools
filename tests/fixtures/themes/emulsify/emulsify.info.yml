@@ -1,0 +1,8 @@
+name: Emulsify Kernel Base
+type: theme
+description: Provides base theme component namespace fixtures for kernel tests.
+base theme: false
+core_version_requirement: ^11 || ^12
+components:
+  namespaces:
+    ui: components

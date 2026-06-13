@@ -84,6 +84,10 @@ final class StarterRecipeArchiveExtractor {
   /**
    * Extracts a tar-based archive.
    *
+   * @param string $archivePath
+   *   The path to the archive file.
+   * @param string $destinationDirectory
+   *   The destination directory.
    * @param 'bz2'|'gz'|'lzma2'|'none' $compression
    *   The tar compression format.
    */

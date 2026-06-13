@@ -17,6 +17,13 @@ final class FaviconThemeManager {
   public static array $settings = [];
 
   /**
+   * Theme-specific settings returned by loadThemeSettings().
+   *
+   * @var array<string, array<string, mixed>>
+   */
+  public static array $settingsByTheme = [];
+
+  /**
    * The generated package result returned by generatePackage().
    *
    * @var array<string, mixed>
@@ -24,11 +31,25 @@ final class FaviconThemeManager {
   public static array $generateResult = [];
 
   /**
+   * Theme-specific generated package results.
+   *
+   * @var array<string, array<string, mixed>>
+   */
+  public static array $generateResultByTheme = [];
+
+  /**
    * The package status returned by buildPackageStatus().
    *
    * @var array<string, mixed>
    */
   public static array $packageStatus = [];
+
+  /**
+   * Theme-specific package status fixtures.
+   *
+   * @var array<string, array<string, mixed>>
+   */
+  public static array $packageStatusByTheme = [];
 
   /**
    * The runtime dependency status returned by getRuntimeDependencyStatus().
@@ -48,9 +69,23 @@ final class FaviconThemeManager {
   public static array $resetSettings = [];
 
   /**
+   * Theme-specific reset settings.
+   *
+   * @var array<string, array<string, mixed>>
+   */
+  public static array $resetSettingsByTheme = [];
+
+  /**
    * Optional placeholder source file returned by resolveStoredSourceFile().
    */
   public static ?object $sourceFile = NULL;
+
+  /**
+   * Exceptions to throw, keyed by method then theme name.
+   *
+   * @var array<string, array<string, \Throwable>>
+   */
+  public static array $exceptions = [];
 
   /**
    * Recorded method calls for assertions.
@@ -69,14 +104,19 @@ final class FaviconThemeManager {
    */
   public static function resetFixture(): void {
     self::$settings = [];
+    self::$settingsByTheme = [];
     self::$generateResult = [];
+    self::$generateResultByTheme = [];
     self::$packageStatus = [];
+    self::$packageStatusByTheme = [];
     self::$runtimeDependencyStatus = [
       'gd' => TRUE,
       'imagick' => TRUE,
     ];
     self::$resetSettings = [];
+    self::$resetSettingsByTheme = [];
     self::$sourceFile = NULL;
+    self::$exceptions = [];
     self::$calls = [];
   }
 
@@ -91,8 +131,9 @@ final class FaviconThemeManager {
       'method' => 'loadThemeSettings',
       'theme' => $themeName,
     ];
+    self::throwConfiguredException('loadThemeSettings', $themeName);
 
-    return self::$settings;
+    return self::$settingsByTheme[$themeName] ?? self::$settings;
   }
 
   /**
@@ -120,8 +161,9 @@ final class FaviconThemeManager {
       'settings' => $settings,
       'source_file' => $sourceFile,
     ];
+    self::throwConfiguredException('buildPackageStatus', $themeName);
 
-    return self::$packageStatus;
+    return self::$packageStatusByTheme[$themeName] ?? self::$packageStatus;
   }
 
   /**
@@ -151,8 +193,9 @@ final class FaviconThemeManager {
       'settings' => $settings,
       'overwrite' => $overwrite,
     ];
+    self::throwConfiguredException('generatePackage', $themeName);
 
-    return self::$generateResult;
+    return self::$generateResultByTheme[$themeName] ?? self::$generateResult;
   }
 
   /**
@@ -177,8 +220,21 @@ final class FaviconThemeManager {
       'method' => 'resetThemeSettings',
       'theme' => $themeName,
     ];
+    self::throwConfiguredException('resetThemeSettings', $themeName);
 
-    return self::$resetSettings;
+    return self::$resetSettingsByTheme[$themeName] ?? self::$resetSettings;
+  }
+
+  /**
+   * Throws a configured method/theme exception when present.
+   */
+  private static function throwConfiguredException(string $method, string $themeName): void {
+    $exception = self::$exceptions[$method][$themeName]
+      ?? self::$exceptions[$method]['*']
+      ?? NULL;
+    if ($exception instanceof \Throwable) {
+      throw $exception;
+    }
   }
 
 }

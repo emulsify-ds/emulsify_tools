@@ -27,6 +27,11 @@ final class AdminThemeFaviconHooks {
 
   /**
    * Handles hook_form_system_theme_settings_alter().
+   *
+   * @param array<string|int, mixed> $form
+   *   The theme settings form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The current form state.
    */
   #[Hook('form_system_theme_settings_alter')]
   public function formSystemThemeSettingsAlter(array &$form, FormStateInterface $form_state): void {
@@ -60,6 +65,9 @@ final class AdminThemeFaviconHooks {
 
   /**
    * Handles hook_page_attachments_alter().
+   *
+   * @param array<string|int, mixed> $attachments
+   *   The page attachments array.
    */
   #[Hook('page_attachments_alter')]
   public function pageAttachmentsAlter(array &$attachments): void {
@@ -68,13 +76,22 @@ final class AdminThemeFaviconHooks {
 
   /**
    * Static submit callback for the admin-theme favicon toggle.
+   *
+   * @param array<string|int, mixed> $form
+   *   The submitted form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The submitted form state.
    */
   public static function submitAdminThemeToggle(array &$form, FormStateInterface $form_state): void {
     self::service()->doSubmitAdminThemeToggle($form_state);
   }
 
+  // phpcs:disable DrupalPractice.Objects.UnusedPrivateMethod.UnusedMethod
+
   /**
    * Persists the admin-theme toggle for the configured frontend theme.
+   *
+   * Static FAPI callbacks resolve the service instance before calling this.
    */
   private function doSubmitAdminThemeToggle(FormStateInterface $form_state): void {
     $themeName = $this->resolveThemeName($form_state);
@@ -92,6 +109,8 @@ final class AdminThemeFaviconHooks {
       (bool) $enabled,
     );
   }
+
+  // phpcs:enable DrupalPractice.Objects.UnusedPrivateMethod.UnusedMethod
 
   /**
    * Resolves the theme being configured on the system theme settings form.

@@ -1,0 +1,8 @@
+name: Emulsify Kernel Child
+type: theme
+description: Provides child theme component namespace fixtures for kernel tests.
+base theme: emulsify
+core_version_requirement: ^11 || ^12
+components:
+  namespaces:
+    ui: components

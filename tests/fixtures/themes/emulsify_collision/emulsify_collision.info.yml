@@ -1,0 +1,8 @@
+name: Emulsify Kernel Collision
+type: theme
+description: Provides protected namespace collision fixtures for kernel tests.
+base theme: emulsify
+core_version_requirement: ^11 || ^12
+components:
+  namespaces:
+    system: components

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\emulsify_tools;
 
+use Drupal\Core\Cache\Cache;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Extension\ThemeExtensionList;
 use Drupal\Core\Extension\ThemeSettingsProvider;
@@ -118,15 +119,17 @@ final class AdminThemeFaviconManager {
   /**
    * Applies the default frontend theme favicon package to admin pages.
    *
-   * @param array $attachments
+   * @param array<string|int, mixed> $attachments
    *   The page attachments array.
    */
   public function applyToAdminPageAttachments(array &$attachments): void {
+    $frontendTheme = $this->getDefaultFrontendTheme();
+    $this->applyAttachmentCacheability($attachments, $frontendTheme);
+
     if (!$this->adminContext->isAdminRoute()) {
       return;
     }
 
-    $frontendTheme = $this->getDefaultFrontendTheme();
     if ($frontendTheme === '' || !$this->supportsTheme($frontendTheme) || !$this->isEnabledForTheme($frontendTheme)) {
       return;
     }
@@ -142,6 +145,75 @@ final class AdminThemeFaviconManager {
 
     $this->removeConflictingLinks($attachments);
     $this->attachGeneratedPackage($attachments, $settings);
+  }
+
+  /**
+   * Applies cache metadata for the admin favicon decision.
+   *
+   * @param array<string|int, mixed> $attachments
+   *   The page attachments array.
+   * @param string $frontendTheme
+   *   The configured default frontend theme.
+   */
+  private function applyAttachmentCacheability(array &$attachments, string $frontendTheme): void {
+    $tags = [
+      'config:' . self::CONFIG_NAME,
+      'config:system.theme',
+    ];
+    if ($frontendTheme !== '') {
+      $tags[] = 'config:' . $frontendTheme . '.settings';
+    }
+
+    $cache = $attachments['#cache'] ?? [];
+    if (!is_array($cache)) {
+      $cache = [];
+    }
+
+    $existingTags = $this->normalizeStringList($cache['tags'] ?? NULL);
+    $existingContexts = $this->normalizeStringList($cache['contexts'] ?? NULL);
+
+    $cache['tags'] = Cache::mergeTags($existingTags, $tags);
+    $cache['contexts'] = $this->mergeCacheContexts($existingContexts, ['route']);
+    $attachments['#cache'] = $cache;
+  }
+
+  /**
+   * Merges cache context lists.
+   *
+   * @param string[] $existingContexts
+   *   Existing cache contexts.
+   * @param string[] $contexts
+   *   Cache contexts to add.
+   *
+   * @return list<string>
+   *   Merged cache contexts.
+   */
+  private function mergeCacheContexts(array $existingContexts, array $contexts): array {
+    return array_values(array_unique(array_merge(
+      $existingContexts,
+      $contexts,
+    )));
+  }
+
+  /**
+   * Normalizes an attachment cache metadata value to a string list.
+   *
+   * @return list<string>
+   *   String values.
+   */
+  private function normalizeStringList(mixed $values): array {
+    if (!is_array($values)) {
+      return [];
+    }
+
+    $strings = [];
+    foreach ($values as $value) {
+      if (is_string($value)) {
+        $strings[] = $value;
+      }
+    }
+
+    return $strings;
   }
 
   /**
@@ -178,6 +250,14 @@ final class AdminThemeFaviconManager {
 
   /**
    * Loads just the Emulsify favicon settings needed for head-tag generation.
+   *
+   * @return array{
+   *   favicon_package_enabled: bool,
+   *   favicon_package_path: string,
+   *   favicon_android_background_color: string,
+   *   favicon_ios_icon_name: string
+   *   }
+   *   The normalized favicon settings.
    */
   private function loadThemeFaviconSettings(string $themeName): array {
     $siteName = trim((string) $this->configFactory->get('system.site')->get('name'));
@@ -202,61 +282,86 @@ final class AdminThemeFaviconManager {
   /**
    * Attaches the generated favicon package to page attachments.
    *
-   * @param array $attachments
+   * @param array<string|int, mixed> $attachments
    *   The page attachments array.
-   * @param array $settings
+   * @param array<string, mixed> $settings
    *   The normalized theme settings.
+   *
+   * @phpstan-param array{
+   *   favicon_package_enabled: bool,
+   *   favicon_package_path: string,
+   *   favicon_android_background_color: string,
+   *   favicon_ios_icon_name: string
+   *   } $settings
    */
   private function attachGeneratedPackage(array &$attachments, array $settings): void {
     $packagePath = $settings['favicon_package_path'];
     $themeColor = $settings['favicon_android_background_color'];
     $iconName = trim((string) $settings['favicon_ios_icon_name']);
 
-    $attachments['#attached']['html_head_link'][] = [[
-      'rel' => 'icon',
-      'href' => $this->fileUrlGenerator->generateString($packagePath . '/favicon.ico'),
-      'sizes' => 'any',
-    ], FALSE];
-
-    $attachments['#attached']['html_head_link'][] = [[
-      'rel' => 'icon',
-      'type' => 'image/svg+xml',
-      'href' => $this->fileUrlGenerator->generateString($packagePath . '/favicon.svg'),
-    ], FALSE];
-
-    $attachments['#attached']['html_head_link'][] = [[
-      'rel' => 'apple-touch-icon',
-      'href' => $this->fileUrlGenerator->generateString($packagePath . '/apple-touch-icon.png'),
-    ], FALSE];
-
-    $attachments['#attached']['html_head_link'][] = [[
-      'rel' => 'manifest',
-      'href' => $this->fileUrlGenerator->generateString($packagePath . '/site.webmanifest'),
-    ], FALSE];
-
-    $attachments['#attached']['html_head'][] = [[
-      '#tag' => 'meta',
-      '#attributes' => [
-        'name' => 'theme-color',
-        'content' => $themeColor,
+    $attachments['#attached']['html_head_link'][] = [
+      [
+        'rel' => 'icon',
+        'href' => $this->fileUrlGenerator->generateString($packagePath . '/favicon.ico'),
+        'sizes' => 'any',
       ],
-    ], 'emulsify_tools_admin_favicon_theme_color'];
+      FALSE,
+    ];
 
-    if ($iconName !== '') {
-      $attachments['#attached']['html_head'][] = [[
+    $attachments['#attached']['html_head_link'][] = [
+      [
+        'rel' => 'icon',
+        'type' => 'image/svg+xml',
+        'href' => $this->fileUrlGenerator->generateString($packagePath . '/favicon.svg'),
+      ],
+      FALSE,
+    ];
+
+    $attachments['#attached']['html_head_link'][] = [
+      [
+        'rel' => 'apple-touch-icon',
+        'href' => $this->fileUrlGenerator->generateString($packagePath . '/apple-touch-icon.png'),
+      ],
+      FALSE,
+    ];
+
+    $attachments['#attached']['html_head_link'][] = [
+      [
+        'rel' => 'manifest',
+        'href' => $this->fileUrlGenerator->generateString($packagePath . '/site.webmanifest'),
+      ],
+      FALSE,
+    ];
+
+    $attachments['#attached']['html_head'][] = [
+      [
         '#tag' => 'meta',
         '#attributes' => [
-          'name' => 'apple-mobile-web-app-title',
-          'content' => $iconName,
+          'name' => 'theme-color',
+          'content' => $themeColor,
         ],
-      ], 'emulsify_tools_admin_favicon_ios_title'];
+      ],
+      'emulsify_tools_admin_favicon_theme_color',
+    ];
+
+    if ($iconName !== '') {
+      $attachments['#attached']['html_head'][] = [
+        [
+          '#tag' => 'meta',
+          '#attributes' => [
+            'name' => 'apple-mobile-web-app-title',
+            'content' => $iconName,
+          ],
+        ],
+        'emulsify_tools_admin_favicon_ios_title',
+      ];
     }
   }
 
   /**
    * Removes conflicting favicon links and metadata from attachments.
    *
-   * @param array $attachments
+   * @param array<string|int, mixed> $attachments
    *   The page attachments array.
    */
   private function removeConflictingLinks(array &$attachments): void {

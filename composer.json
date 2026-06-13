@@ -29,6 +29,11 @@
     "drush/drush": "Install Drush 13+ to use the emulsify_tools:bake and favicon deployment commands."
   },
   "scripts": {
+    "lint": [
+      "@lint:phpcs"
+    ],
+    "lint:phpcs": "phpcs -q",
+    "lint:phpcbf": "phpcbf",
     "test:unit": "phpunit --configuration phpunit.xml.dist",
     "test:deprecations": "phpstan analyse --configuration phpstan.neon.dist --no-progress --memory-limit=1G --debug"
   },

@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * @file
+ * Test suite bootstrap for Emulsify Tools.
+ */
+
 declare(strict_types=1);
 
 $autoloadCandidates = array_filter([
@@ -23,14 +28,28 @@ if (!$autoloadLoaded) {
   exit(1);
 }
 
+$kernelDatabaseDirectory = __DIR__ . '/../.phpunit.cache';
+if (!is_dir($kernelDatabaseDirectory)) {
+  mkdir($kernelDatabaseDirectory, 0777, TRUE);
+}
+
+if (getenv('SIMPLETEST_DB') === FALSE || getenv('SIMPLETEST_DB') === '') {
+  $kernelDatabase = 'sqlite://localhost//' . $kernelDatabaseDirectory . '/kernel.sqlite?module=sqlite';
+  putenv('SIMPLETEST_DB=' . $kernelDatabase);
+  $_ENV['SIMPLETEST_DB'] = $kernelDatabase;
+  $_SERVER['SIMPLETEST_DB'] = $kernelDatabase;
+}
+
 spl_autoload_register(static function (string $class) use ($vendorDirectory): void {
   $prefixes = [
     'Drupal\\emulsify_tools\\' => __DIR__ . '/../src/',
     'Drupal\\Tests\\emulsify_tools\\' => __DIR__ . '/src/',
     'Drupal\\emulsify\\Favicon\\' => __DIR__ . '/fixtures/Drupal/emulsify/Favicon/',
+    'Consolidation\\' => __DIR__ . '/fixtures/Consolidation/',
     'Drush\\' => __DIR__ . '/fixtures/Drush/',
   ];
   if (is_string($vendorDirectory) && is_dir($vendorDirectory . '/drupal/core/tests/Drupal/Tests/')) {
+    $prefixes['Drupal\\KernelTests\\'] = $vendorDirectory . '/drupal/core/tests/Drupal/KernelTests/';
     $prefixes['Drupal\\Tests\\'] = $vendorDirectory . '/drupal/core/tests/Drupal/Tests/';
     $prefixes['Drupal\\TestTools\\'] = $vendorDirectory . '/drupal/core/tests/Drupal/TestTools/';
   }
@@ -38,6 +57,10 @@ spl_autoload_register(static function (string $class) use ($vendorDirectory): vo
   foreach ($prefixes as $prefix => $baseDirectory) {
     if (!str_starts_with($class, $prefix)) {
       continue;
+    }
+
+    if ($prefix === 'Drupal\\emulsify\\Favicon\\' && getenv('EMULSIFY_TOOLS_DISABLE_EMULSIFY_FIXTURES')) {
+      return;
     }
 
     $relativeClass = substr($class, strlen($prefix));

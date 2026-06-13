@@ -142,8 +142,20 @@ final class FaviconCommandManagerTest extends UnitTestCase {
   }
 
   /**
+   * Tests supported theme discovery uses the same support logic.
+   */
+  public function testGetSupportedThemeNamesReturnsEmulsifyBasedThemes(): void {
+    $themes = $this->createSupportedThemes() + $this->createUnsupportedThemes();
+    $manager = $this->createCommandManager('sfasu', $themes);
+
+    self::assertSame(['emulsify', 'sfasu'], $manager->getSupportedThemeNames());
+  }
+
+  /**
    * Creates the command manager under test.
    *
+   * @param string $defaultTheme
+   *   The configured default theme.
    * @param array<string, object> $themes
    *   Themes available in the current codebase.
    */

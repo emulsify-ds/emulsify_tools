@@ -15,7 +15,7 @@ final class TwigAttributeManager {
   /**
    * Builds the final attribute collection for add_attributes().
    *
-   * @param array $context
+   * @param array<string, mixed> $context
    *   The Twig render context.
    * @param mixed $additionalAttributes
    *   Additional attributes to merge onto the context attributes.
@@ -36,7 +36,7 @@ final class TwigAttributeManager {
   /**
    * Builds the final attribute collection for bem().
    *
-   * @param array $context
+   * @param array<string, mixed> $context
    *   The Twig render context.
    * @param string[] $classes
    *   The classes to attach to the attribute collection.
@@ -48,8 +48,11 @@ final class TwigAttributeManager {
     $attributes = $this->consumeContextAttributes($context);
 
     if ($classes !== []) {
-      $existingClasses = $attributes->offsetExists('class')
-        ? (array) $this->normalizeAttributeValue('class', $attributes->offsetGet('class')->value())
+      $existingClassValue = $attributes->offsetExists('class')
+        ? $attributes->offsetGet('class')?->value()
+        : NULL;
+      $existingClasses = $existingClassValue !== NULL
+        ? (array) $this->normalizeAttributeValue('class', $existingClassValue)
         : [];
       $attributes->setAttribute('class', $this->sanitizeClasses(array_merge($classes, $existingClasses)));
     }
@@ -78,7 +81,7 @@ final class TwigAttributeManager {
       return;
     }
 
-    $existingValue = $attributes->offsetGet($name)->value();
+    $existingValue = $attributes->offsetGet($name)?->value();
     $attributes->setAttribute($name, $this->mergeAttributeValues($name, $existingValue, $normalizedValue));
   }
 
@@ -88,7 +91,7 @@ final class TwigAttributeManager {
    * @param mixed $attributes
    *   The incoming Twig value.
    *
-   * @return array
+   * @return array<string, mixed>
    *   A normalized attribute map.
    */
   private function normalizeAttributeMap(mixed $attributes): array {
@@ -110,7 +113,7 @@ final class TwigAttributeManager {
   /**
    * Copies context attributes into a new collection and clears the source.
    *
-   * @param array $context
+   * @param array<string, mixed> $context
    *   The Twig render context.
    *
    * @return \Drupal\Core\Template\Attribute
@@ -123,7 +126,7 @@ final class TwigAttributeManager {
     foreach (array_keys($sourceAttributes->toArray()) as $name) {
       $attributes->setAttribute(
         $name,
-        $this->normalizeAttributeValue($name, $sourceAttributes->offsetGet($name)->value()),
+        $this->normalizeAttributeValue($name, $sourceAttributes->offsetGet($name)?->value()),
       );
       $sourceAttributes->removeAttribute($name);
     }
@@ -134,7 +137,7 @@ final class TwigAttributeManager {
   /**
    * Returns a normalized Attribute object from Twig context.
    *
-   * @param array $context
+   * @param array<string, mixed> $context
    *   The Twig render context.
    *
    * @return \Drupal\Core\Template\Attribute
@@ -195,10 +198,10 @@ final class TwigAttributeManager {
    *
    * @param string $name
    *   The attribute name.
-   * @param array $values
+   * @param mixed[] $values
    *   The incoming values.
    *
-   * @return array
+   * @return mixed[]
    *   The normalized attribute values.
    */
   private function normalizeArrayValue(string $name, array $values): array {
@@ -268,7 +271,7 @@ final class TwigAttributeManager {
   /**
    * Sanitizes CSS classes.
    *
-   * @param array $classes
+   * @param mixed[] $classes
    *   The classes to sanitize.
    *
    * @return string[]

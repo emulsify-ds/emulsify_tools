@@ -15,22 +15,31 @@ codebase now uses PHP 8.4-only syntax where it improves readability.
 - The Twig helpers and child theme generator remain broadly useful on their own,
   but the favicon migration and admin-theme favicon features expect the
   Emulsify 7.x companion theme APIs to be present.
+- In short: child theme generation remains available for Emulsify Drupal 6.x
+  projects, while generated favicon deployment and repair are the Emulsify
+  Drupal 7.x companion workflows in this 2.x line.
 
 ## Usage
 
 ### Child theme generation
 
-Emulsify Tools 1.x provides the supported Drush workflow for generating Emulsify Drupal 6.x child themes. Use either command form:
-
-Child theme generation:
+Emulsify Tools 2.x still includes the supported Drush workflow for generating
+Emulsify Drupal 6.x child themes. Use either command form:
 
 `drush emulsify_tools:bake [theme_name]`
 
-The commands are equivalent. The generated child theme uses `emulsify` as its runtime parent theme and should be created under the Drupal custom theme path expected by the command, such as `web/themes/custom/my_theme` in a Composer-based Drupal project.
+`drush emulsify [theme_name]`
 
-Drupal core Starterkit-based generation is being prepared for the Emulsify Drupal 7.x release line. For Emulsify Drupal 6.x, use Emulsify Tools for child theme generation.
+The commands are equivalent. The generated child theme uses `emulsify` as its
+runtime parent theme and should be created under the Drupal custom theme path
+expected by the command, such as `web/themes/custom/my_theme` in a
+Composer-based Drupal project.
 
-Generated favicon deployment:
+Drupal core Starterkit-based generation is being prepared for the Emulsify Drupal
+7.x release line. For Emulsify Drupal 6.x child theme projects, use Emulsify
+Tools for child theme generation.
+
+Generated favicon deployment for Emulsify Drupal 7.x companion themes:
 
 `drush emulsify_tools:favicon-generate [theme_name]`
 
@@ -304,7 +313,12 @@ To validate the Emulsify Drupal 6.x child theme generation workflow against this
 .github/scripts/generation-smoke.sh
 ```
 
-The script creates a disposable Drupal fixture site, installs Emulsify Drupal `^6`, installs this checkout as Emulsify Tools `1.x`, verifies both Drush command help targets, runs `drush emulsify watson`, validates the generated theme files, and enables the generated child theme. It intentionally does not test Drupal core Starterkit generation.
+The script creates a disposable Drupal fixture site, installs Emulsify Drupal
+`^6`, installs this 2.x checkout through the script's local `TOOLS_VERSION`
+fixture alias, verifies both Drush command help targets, runs
+`drush emulsify watson`, validates the generated theme files, and enables the
+generated child theme. It intentionally does not test Drupal core Starterkit
+generation or the Emulsify Drupal 7.x favicon deployment workflow.
 
 Requirements: Composer and PHP. The default SQLite fixture database also requires `pdo_sqlite`.
 
@@ -343,8 +357,9 @@ There's a two-step process to publish a new release to [the project page](https:
 
 - Merge the release-ready changes into `main`.
 - The [semantic-release workflow](https://github.com/emulsify-ds/emulsify_tools/actions)
-  will calculate the next version from the merged commit messages, create the
-  GitHub release, and push the new tag to Drupal.org.
+  will calculate the next version from the merged commit messages, update
+  `CHANGELOG.md`, create a `[skip ci]` release commit, create the GitHub
+  release, and push the release commit and new tag to Drupal.org.
 - When the workflow completes, confirm the new version appears on the
   [GitHub Releases page](https://github.com/emulsify-ds/emulsify_tools/releases).
 

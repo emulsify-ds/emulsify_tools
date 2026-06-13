@@ -78,20 +78,26 @@ final class AdminThemeFaviconManagerTest extends UnitTestCase {
           [['rel' => 'preconnect']],
         ],
         'html_head' => [
-          [[
-            '#tag' => 'meta',
-            '#attributes' => [
-              'name' => 'theme-color',
-              'content' => '#000000',
+          [
+            [
+              '#tag' => 'meta',
+              '#attributes' => [
+                'name' => 'theme-color',
+                'content' => '#000000',
+              ],
             ],
-          ], 'core_theme_color'],
-          [[
-            '#tag' => 'meta',
-            '#attributes' => [
-              'name' => 'robots',
-              'content' => 'noindex',
+            'core_theme_color',
+          ],
+          [
+            [
+              '#tag' => 'meta',
+              '#attributes' => [
+                'name' => 'robots',
+                'content' => 'noindex',
+              ],
             ],
-          ], 'robots'],
+            'robots',
+          ],
         ],
       ],
     ];
@@ -215,6 +221,7 @@ final class AdminThemeFaviconManagerTest extends UnitTestCase {
     $manager->applyToAdminPageAttachments($attachments);
 
     self::assertSame('/misc/favicon.ico', $attachments['#attached']['html_head_link'][0][0]['href']);
+    $this->assertAdminFaviconCacheability($attachments);
   }
 
   /**
@@ -226,6 +233,16 @@ final class AdminThemeFaviconManagerTest extends UnitTestCase {
    *   Theme setting values keyed by setting name.
    * @param array<string, object> $themes
    *   Theme definitions keyed by machine name.
+   * @param string $activeTheme
+   *   The currently active theme.
+   * @param string $adminTheme
+   *   The configured admin theme.
+   * @param string $defaultTheme
+   *   The configured default theme.
+   * @param string $siteName
+   *   The configured site name.
+   * @param bool $isAdminRoute
+   *   Whether the current request is for an admin route.
    */
   private function createManager(
     array $enabledThemes = [],
@@ -294,6 +311,19 @@ final class AdminThemeFaviconManagerTest extends UnitTestCase {
       ->willReturnCallback(static fn (string $key): mixed => $values[$key] ?? NULL);
 
     return $config;
+  }
+
+  /**
+   * Asserts cacheability metadata for the admin favicon decision.
+   *
+   * @param array<string|int, mixed> $attachments
+   *   Page attachments.
+   */
+  private function assertAdminFaviconCacheability(array $attachments): void {
+    self::assertContains('config:emulsify_tools.settings', $attachments['#cache']['tags']);
+    self::assertContains('config:system.theme', $attachments['#cache']['tags']);
+    self::assertContains('config:sfasu.settings', $attachments['#cache']['tags']);
+    self::assertContains('route', $attachments['#cache']['contexts']);
   }
 
 }

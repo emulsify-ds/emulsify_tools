@@ -21,7 +21,7 @@ final class FaviconPackageGenerator {
   /**
    * Returns a sanitized SVG payload placeholder.
    *
-   * @return array{sanitized_svg: string}
+   * @return array{sanitized_svg?: string}
    *   Placeholder validation output.
    */
   public function validateSourceFile(FileInterface $file, bool $sanitize): array {
