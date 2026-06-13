@@ -352,7 +352,7 @@ final class ThemeNamespaceRegistry {
     $protectedNamespaces = [];
 
     foreach ($this->moduleExtensionList->getList() as $extensionName => $extension) {
-      if (!$extension instanceof Extension || $this->allowsDefaultNamespaceReuse($extension)) {
+      if ($this->allowsDefaultNamespaceReuse($extension)) {
         continue;
       }
 
@@ -364,7 +364,7 @@ final class ThemeNamespaceRegistry {
 
     // Themes win ties to match Drupal's existing namespace precedence.
     foreach ($this->themeExtensionList->getList() as $extensionName => $extension) {
-      if (!$extension instanceof Extension || $this->allowsDefaultNamespaceReuse($extension)) {
+      if ($this->allowsDefaultNamespaceReuse($extension)) {
         continue;
       }
 

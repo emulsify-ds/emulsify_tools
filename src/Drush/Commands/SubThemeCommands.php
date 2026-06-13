@@ -15,7 +15,6 @@ use Drush\Commands\DrushCommands;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
-use Symfony\Component\Finder\SplFileInfo;
 
 /**
  * Provides Drush commands for Emulsify tools.
@@ -350,7 +349,7 @@ final class SubThemeCommands extends DrushCommands {
     $iterator = $directDescendants->getIterator();
     $iterator->rewind();
     $firstFile = $iterator->current();
-    if ($firstFile instanceof SplFileInfo && $firstFile->isDir()) {
+    if ($firstFile->isDir()) {
       return $firstFile->getPathname();
     }
 

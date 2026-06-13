@@ -118,7 +118,7 @@ final class AdminThemeFaviconManager {
   /**
    * Applies the default frontend theme favicon package to admin pages.
    *
-   * @param array $attachments
+   * @param array<string|int, mixed> $attachments
    *   The page attachments array.
    */
   public function applyToAdminPageAttachments(array &$attachments): void {
@@ -178,6 +178,14 @@ final class AdminThemeFaviconManager {
 
   /**
    * Loads just the Emulsify favicon settings needed for head-tag generation.
+   *
+   * @return array{
+   *   favicon_package_enabled: bool,
+   *   favicon_package_path: string,
+   *   favicon_android_background_color: string,
+   *   favicon_ios_icon_name: string
+   *   }
+   *   The normalized favicon settings.
    */
   private function loadThemeFaviconSettings(string $themeName): array {
     $siteName = trim((string) $this->configFactory->get('system.site')->get('name'));
@@ -202,10 +210,17 @@ final class AdminThemeFaviconManager {
   /**
    * Attaches the generated favicon package to page attachments.
    *
-   * @param array $attachments
+   * @param array<string|int, mixed> $attachments
    *   The page attachments array.
-   * @param array $settings
+   * @param array<string, mixed> $settings
    *   The normalized theme settings.
+   *
+   * @phpstan-param array{
+   *   favicon_package_enabled: bool,
+   *   favicon_package_path: string,
+   *   favicon_android_background_color: string,
+   *   favicon_ios_icon_name: string
+   *   } $settings
    */
   private function attachGeneratedPackage(array &$attachments, array $settings): void {
     $packagePath = $settings['favicon_package_path'];
@@ -274,7 +289,7 @@ final class AdminThemeFaviconManager {
   /**
    * Removes conflicting favicon links and metadata from attachments.
    *
-   * @param array $attachments
+   * @param array<string|int, mixed> $attachments
    *   The page attachments array.
    */
   private function removeConflictingLinks(array &$attachments): void {

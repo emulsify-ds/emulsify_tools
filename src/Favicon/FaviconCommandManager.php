@@ -143,6 +143,8 @@ final class FaviconCommandManager {
 
   /**
    * Creates the companion theme manager when the active theme API is present.
+   *
+   * @phpstan-return \Drupal\emulsify\Favicon\FaviconThemeManager
    */
   private function createThemeManager(): object {
     $class = self::THEME_MANAGER_CLASS;

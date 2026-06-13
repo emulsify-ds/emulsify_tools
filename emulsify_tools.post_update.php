@@ -11,6 +11,9 @@ use Drupal\emulsify_tools\Favicon\FaviconThemeSettingsBackfill;
 
 /**
  * Backfills favicon theme settings for installed Emulsify-based themes.
+ *
+ * @param array<string, mixed> $sandbox
+ *   The Drupal post update sandbox.
  */
 function emulsify_tools_post_update_backfill_emulsify_favicon_settings(array &$sandbox = []): string {
   /** @var \Drupal\emulsify_tools\Favicon\FaviconThemeSettingsBackfill $backfill */

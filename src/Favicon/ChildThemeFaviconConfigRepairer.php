@@ -152,7 +152,7 @@ final class ChildThemeFaviconConfigRepairer {
     $themes = [];
 
     foreach ($this->themeExtensionList->getList() as $themeName => $theme) {
-      if (!$theme instanceof Extension || $themeName === self::BASE_THEME) {
+      if ($themeName === self::BASE_THEME) {
         continue;
       }
 
@@ -243,6 +243,15 @@ final class ChildThemeFaviconConfigRepairer {
 
   /**
    * Writes a YAML file only when the merged content changes.
+   *
+   * @param string $path
+   *   The YAML file path.
+   * @param array<string, mixed> $existing
+   *   The existing file content.
+   * @param array<string, mixed> $merged
+   *   The merged file content.
+   * @param bool $fileExisted
+   *   Whether the file already existed before loading.
    */
   private function writeYamlFileIfChanged(string $path, array $existing, array $merged, bool $fileExisted): string {
     if ($merged === $existing) {

@@ -39,7 +39,7 @@ final class BemTwigExtension extends AbstractExtension {
   /**
    * Builds a Drupal attribute object populated with BEM classes.
    *
-   * @param array $context
+   * @param array<string, mixed> $context
    *   The Twig render context.
    * @param mixed $baseClass
    *   A base class string or a configuration object/array.
@@ -85,7 +85,7 @@ final class BemTwigExtension extends AbstractExtension {
    * @param mixed $extra
    *   Optional extra classes.
    *
-   * @return array
+   * @return array{0: string, 1: string[], 2: string, 3: string[]}
    *   The resolved arguments in base, modifiers, blockname, extra order.
    */
   private function resolveArguments(

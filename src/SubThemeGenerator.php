@@ -6,7 +6,6 @@ namespace Drupal\emulsify_tools;
 
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
-use Symfony\Component\Finder\SplFileInfo;
 
 /**
  * Generates Emulsify child themes.
@@ -84,9 +83,7 @@ final class SubThemeGenerator {
       ->name('*.info.emulsify.yml');
 
     foreach ($finder as $fileInfo) {
-      if ($fileInfo instanceof SplFileInfo) {
-        return basename($fileInfo->getFilename(), '.info.emulsify.yml');
-      }
+      return basename($fileInfo->getFilename(), '.info.emulsify.yml');
     }
 
     throw new \RuntimeException(sprintf('No *.info.emulsify.yml file was found in "%s".', $directory));
@@ -134,7 +131,7 @@ final class SubThemeGenerator {
    *
    * @param string $fileName
    *   The file name to update.
-   * @param array $replacementPairs
+   * @param array<string, string> $replacementPairs
    *   Replacement pairs keyed by source string.
    */
   private function modifyFileContent(string $fileName, array $replacementPairs): void {

@@ -90,7 +90,7 @@ final class FaviconThemeSettingsBackfill {
       }
 
       $baseThemes = [];
-      if (is_object($theme) && isset($theme->base_themes) && is_array($theme->base_themes)) {
+      if (isset($theme->base_themes) && is_array($theme->base_themes)) {
         $baseThemes = array_keys($theme->base_themes);
       }
 
@@ -106,15 +106,23 @@ final class FaviconThemeSettingsBackfill {
 
   /**
    * Returns editable config raw data as an array.
+   *
+   * @return array<string, mixed>
+   *   The stored settings.
    */
   private function getStoredSettings(Config $config): array {
-    $settings = $config->getRawData();
-
-    return is_array($settings) ? $settings : [];
+    return $config->getRawData();
   }
 
   /**
    * Fills any missing or NULL favicon settings using current defaults.
+   *
+   * @param \Drupal\Core\Config\Config $config
+   *   The editable theme settings config.
+   * @param array<string, mixed> $storedSettings
+   *   Settings currently stored in configuration.
+   * @param array<string, mixed> $normalizedSettings
+   *   Settings normalized against current defaults.
    */
   private function backfillMissingDefaults(Config $config, array $storedSettings, array $normalizedSettings): bool {
     $changed = FALSE;
@@ -133,6 +141,11 @@ final class FaviconThemeSettingsBackfill {
 
   /**
    * Backfills the portable SVG source from an existing managed file.
+   *
+   * @param \Drupal\Core\Config\Config $config
+   *   The editable theme settings config.
+   * @param array<string, mixed> $storedSettings
+   *   Settings currently stored in configuration.
    */
   private function backfillPortableSource(Config $config, array $storedSettings): bool {
     if (empty($storedSettings['favicon_package_enabled'])) {
