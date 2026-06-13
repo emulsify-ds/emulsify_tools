@@ -122,6 +122,25 @@ final class FaviconCommandManager {
   }
 
   /**
+   * Returns installed Emulsify-based theme names.
+   *
+   * @return string[]
+   *   Theme machine names in extension-list order.
+   */
+  public function getSupportedThemeNames(): array {
+    $themeNames = [];
+
+    foreach (array_keys($this->themeExtensionList->getList()) as $themeName) {
+      $themeName = (string) $themeName;
+      if ($this->supportsTheme($themeName)) {
+        $themeNames[] = $themeName;
+      }
+    }
+
+    return $themeNames;
+  }
+
+  /**
    * Resolves the command target to an installed Emulsify-based theme.
    */
   private function resolveTargetThemeName(?string $themeName): string {

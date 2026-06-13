@@ -45,6 +45,7 @@ spl_autoload_register(static function (string $class) use ($vendorDirectory): vo
     'Drupal\\emulsify_tools\\' => __DIR__ . '/../src/',
     'Drupal\\Tests\\emulsify_tools\\' => __DIR__ . '/src/',
     'Drupal\\emulsify\\Favicon\\' => __DIR__ . '/fixtures/Drupal/emulsify/Favicon/',
+    'Consolidation\\' => __DIR__ . '/fixtures/Consolidation/',
     'Drush\\' => __DIR__ . '/fixtures/Drush/',
   ];
   if (is_string($vendorDirectory) && is_dir($vendorDirectory . '/drupal/core/tests/Drupal/Tests/')) {

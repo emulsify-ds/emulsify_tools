@@ -13,15 +13,27 @@ use Psr\Log\NullLogger;
 abstract class DrushCommands {
 
   /**
+   * Logger used by the command fixture.
+   */
+  private ?LoggerInterface $logger = NULL;
+
+  /**
    * Creates the command base class.
    */
   public function __construct() {}
 
   /**
+   * Sets a logger for command tests.
+   */
+  public function setLogger(LoggerInterface $logger): void {
+    $this->logger = $logger;
+  }
+
+  /**
    * Returns a logger compatible with Drush command code.
    */
   protected function logger(): LoggerInterface {
-    return new NullLogger();
+    return $this->logger ?? new NullLogger();
   }
 
 }
