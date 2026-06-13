@@ -1,0 +1,4 @@
+name: Emulsify Tools Kernel Fixture
+type: module
+description: Provides config schema for Emulsify Tools kernel tests.
+core_version_requirement: ^11 || ^12

@@ -1,0 +1,26 @@
+emulsify_tools.settings:
+  type: config_object
+  label: 'Emulsify Tools settings'
+  mapping:
+    admin_theme_favicon_themes:
+      type: sequence
+      label: 'Themes whose generated favicon package also applies to admin pages'
+      sequence:
+        type: string
+
+emulsify_child.settings:
+  type: theme_settings
+  label: 'Emulsify child test theme settings'
+  mapping:
+    favicon_package_enabled:
+      type: boolean
+      label: 'Generated favicon package enabled'
+    favicon_package_path:
+      type: string
+      label: 'Generated favicon package path'
+    favicon_android_background_color:
+      type: string
+      label: 'Android theme color'
+    favicon_ios_icon_name:
+      type: string
+      label: 'iOS icon title'
