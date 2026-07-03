@@ -1,6 +1,7 @@
 // release.config.cjs
 module.exports = {
   branches: ['main'],
+  tagFormat: '${version}',
   repositoryUrl: 'https://github.com/emulsify-ds/emulsify_tools.git',
   plugins: [
     [

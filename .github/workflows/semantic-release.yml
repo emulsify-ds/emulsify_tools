@@ -41,7 +41,9 @@ jobs:
 
       - name: Sync release tags to Drupal.org Project
         if: steps.semantic.outputs.new_release_published == 'true'
+        env:
+          RELEASE_TAG: ${{ steps.semantic.outputs.new_release_git_tag }}
         run: |
           git remote add drupal-org '${{ secrets.DRUPAL_REPO_URL }}'
-          git push drupal-org --tags
+          git push drupal-org "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
           git push drupal-org HEAD:main
