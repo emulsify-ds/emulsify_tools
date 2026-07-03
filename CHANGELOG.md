@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.1.1](https://github.com/emulsify-ds/emulsify_tools/compare/2.1.0...2.1.1) (2026-07-03)
+
+
+### Bug Fixes
+
+* allow PHP 8.3 support ([7294d8c](https://github.com/emulsify-ds/emulsify_tools/commit/7294d8c2acfd3628c539f2f0b4721069b1884449))
+* restore PHP 8.3 syntax compatibility ([e2e6f56](https://github.com/emulsify-ds/emulsify_tools/commit/e2e6f5662d293522e738592716054b099a20111a))
+
 # [2.1.0](https://github.com/emulsify-ds/emulsify_tools/compare/v2.0.0...v2.1.0) (2026-06-13)
 
 
