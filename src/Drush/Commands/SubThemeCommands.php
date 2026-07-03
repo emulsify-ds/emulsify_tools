@@ -372,7 +372,7 @@ final class SubThemeCommands extends DrushCommands {
    *   The finder.
    */
   private function getDirectDescendants(string $dir): Finder {
-    return new Finder()
+    return (new Finder())
       ->in($dir)
       ->depth('== 0');
   }
