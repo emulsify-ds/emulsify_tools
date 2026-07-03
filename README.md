@@ -4,10 +4,13 @@ This module provides Emulsify Twig extensions, theme-defined Twig namespaces, ch
 
 ## Compatibility
 
-This module targets Drupal `11.3+`, includes Drupal 12 forward compatibility, and requires PHP `8.4+`. Drupal core development branch coverage is experimental until Drupal 12 beta or stable releases are available.
+This module targets Drupal `11.3+`, includes Drupal 12 forward compatibility,
+and supports PHP `8.3+` for Drupal 11 sites. Drupal 12 compatibility follows
+Drupal core's PHP requirements and is tested on PHP `8.5`.
 
 The bundled Drush commands follow the Drush 13+ autowiring pattern, and the
-codebase now uses PHP 8.4-only syntax where it improves readability.
+codebase avoids syntax newer than PHP 8.3 so Drupal 11 sites can keep using
+their supported PHP 8.3 runtimes.
 
 ### Companion theme pairing
 
@@ -288,7 +291,7 @@ changes after running the command.
 
 ### Requires
 
-- [PHP 8.4+](https://www.php.net/)
+- [PHP 8.3+](https://www.php.net/)
 - [Composer 2](https://getcomposer.org/)
 - [Node.js 20.11+](https://nodejs.org/)
 
@@ -360,6 +363,8 @@ There's a two-step process to publish a new release to [the project page](https:
   will calculate the next version from the merged commit messages, update
   `CHANGELOG.md`, create a `[skip ci]` release commit, create the GitHub
   release, and push the release commit and new tag to Drupal.org.
+- Release tags use the semantic version only, such as `2.1.1`, with no `v`
+  prefix.
 - When the workflow completes, confirm the new version appears on the
   [GitHub Releases page](https://github.com/emulsify-ds/emulsify_tools/releases).
 
