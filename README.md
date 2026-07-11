@@ -15,32 +15,39 @@ their supported PHP 8.3 runtimes.
 ### Companion theme pairing
 
 - `emulsify_tools` `^2.0` is intended to pair with Emulsify Drupal `^7.0`.
-- The Twig helpers and child theme generator remain broadly useful on their own,
-  but the favicon migration and admin-theme favicon features expect the
-  Emulsify 7.x companion theme APIs to be present.
-- In short: child theme generation remains available for Emulsify Drupal 6.x
-  projects, while generated favicon deployment and repair are the Emulsify
-  Drupal 7.x companion workflows in this 2.x line.
+- Child theme generation, favicon migration, and admin-theme favicon features
+  use the Emulsify Drupal 7.x companion theme APIs.
 
 ## Usage
 
 ### Child theme generation
 
-Emulsify Tools 2.x still includes the supported Drush workflow for generating
-Emulsify Drupal 6.x child themes. Use either command form:
+Emulsify Tools provides a Drush wrapper around Drupal core Starterkit
+generation. These equivalent commands use the same `whisk` source and produce
+byte-identical child themes when given the same machine name, display name, and
+description:
 
-`drush emulsify_tools:bake [theme_name]`
+```bash
+php web/core/scripts/drupal generate-theme my_theme \
+  --name="My Theme" \
+  --description="Project theme" \
+  --starterkit=whisk \
+  --path=themes/custom \
+  --no-interaction
 
-`drush emulsify [theme_name]`
+drush emulsify_tools:bake my_theme \
+  --name="My Theme" \
+  --description="Project theme"
 
-The commands are equivalent. The generated child theme uses `emulsify` as its
-runtime parent theme and should be created under the Drupal custom theme path
-expected by the command, such as `web/themes/custom/my_theme` in a
-Composer-based Drupal project.
+drush emulsify my_theme \
+  --name="My Theme" \
+  --description="Project theme"
+```
 
-Drupal core Starterkit-based generation is being prepared for the Emulsify Drupal
-7.x release line. For Emulsify Drupal 6.x child theme projects, use Emulsify
-Tools for child theme generation.
+Both Drush forms are aliases. The generated child theme uses `emulsify` as its
+runtime parent theme and is created at `web/themes/custom/my_theme` in a
+standard Composer-based Drupal project. A human-readable positional value such
+as `drush emulsify "My Theme"` remains supported and resolves to `my_theme`.
 
 Generated favicon deployment for Emulsify Drupal 7.x companion themes:
 
@@ -310,18 +317,18 @@ changes after running the command.
 
 ### Generation Smoke Test
 
-To validate the Emulsify Drupal 6.x child theme generation workflow against this checkout, run:
+To validate Drupal core and Drush child-theme generation parity against this
+checkout, run:
 
 ```
 .github/scripts/generation-smoke.sh
 ```
 
 The script creates a disposable Drupal fixture site, installs Emulsify Drupal
-`^6`, installs this 2.x checkout through the script's local `TOOLS_VERSION`
-fixture alias, verifies both Drush command help targets, runs
-`drush emulsify watson`, validates the generated theme files, and enables the
-generated child theme. It intentionally does not test Drupal core Starterkit
-generation or the Emulsify Drupal 7.x favicon deployment workflow.
+`^7`, installs this checkout through the script's local `TOOLS_VERSION` fixture
+alias, generates the same theme through Drupal core and Drush, compares every
+directory and file byte-for-byte, validates the result, and enables the Drush
+output.
 
 Requirements: Composer and PHP. The default SQLite fixture database also requires `pdo_sqlite`.
 
@@ -330,10 +337,12 @@ Optional environment variables:
 ```
 FIXTURE_DIR=/tmp/emulsify-tools-generation-smoke
 DRUPAL_VERSION=11.3.*
-EMULSIFY_VERSION=^6
-TOOLS_VERSION=1.0.99
+EMULSIFY_VERSION=^7
+TOOLS_VERSION=2.1.99
 DRUSH_VERSION=^13
 THEME_NAME=watson
+THEME_LABEL="Watson Theme"
+THEME_DESCRIPTION="Project theme"
 DB_URL=sqlite://sites/default/files/.ht.sqlite
 KEEP_FIXTURE=1
 ```

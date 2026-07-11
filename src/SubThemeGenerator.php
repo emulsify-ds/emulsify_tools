@@ -9,6 +9,10 @@ use Symfony\Component\Finder\Finder;
 
 /**
  * Generates Emulsify child themes.
+ *
+ * @deprecated in emulsify_tools:2.2.0 and is removed from
+ *   emulsify_tools:3.0.0. Drush generation now delegates to Drupal core.
+ * @see https://www.drupal.org/project/drupal/issues/3364885
  */
 final class SubThemeGenerator {
 

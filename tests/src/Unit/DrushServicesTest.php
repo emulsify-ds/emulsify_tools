@@ -27,9 +27,6 @@ final class DrushServicesTest extends UnitTestCase {
     self::assertSame(SubThemeCommands::class, $services['services']['emulsify_tools.commands']['class']);
     self::assertSame([
       '@extension.list.theme',
-      '@Drupal\emulsify_tools\Archive\StarterRecipeArchiveExtractor',
-      '@emulsify_tools.subtheme_generator',
-      '@emulsify_tools.filesystem',
       '@Drupal\emulsify_tools\Favicon\ChildThemeFaviconConfigRepairer',
     ], $services['services']['emulsify_tools.commands']['arguments']);
   }

@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\emulsify_tools\Unit;
 
+use Drupal\Core\Command\GenerateTheme;
 use Drupal\Core\Extension\ThemeExtensionList;
-use Drupal\emulsify_tools\Archive\StarterRecipeArchiveExtractor;
 use Drupal\emulsify_tools\Drush\Commands\SubThemeCommands;
 use Drupal\emulsify_tools\Favicon\ChildThemeFaviconConfigRepairer;
-use Drupal\emulsify_tools\SubThemeGenerator;
 use Drupal\Tests\UnitTestCase;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LogLevel;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Filesystem\Filesystem;
 
 /**
@@ -103,32 +104,29 @@ final class SubThemeCommandsTest extends UnitTestCase {
   }
 
   /**
-   * Tests a valid label still generates a child theme.
+   * Tests Drush and Drupal core generate byte-identical child themes.
    */
-  public function testGenerateSubThemeAcceptsValidLabelAndLogsMachineName(): void {
-    $emulsifyPath = $this->temporaryDirectory . '/themes/contrib/emulsify';
-    $this->writeStarterRecipe($emulsifyPath . '/whisk');
-    $this->filesystem->mkdir($this->temporaryDirectory . '/themes/custom');
+  public function testGenerateSubThemeMatchesDrupalCoreStarterkit(): void {
+    $this->writeStarterRecipe($this->temporaryDirectory . '/themes/contrib/emulsify/whisk');
+    $description = 'Project theme: punctuation & metadata.';
+
+    $this->generateWithCore(
+      'happy_theme',
+      'Happy Theme',
+      $description,
+      'themes/core-generated',
+    );
 
     $logger = new SubThemeCommandRecordingLogger();
-    $command = $this->createCommand(['emulsify', 'stark'], $emulsifyPath, $logger);
+    $command = $this->createCommand(['emulsify', 'stark'], $this->temporaryDirectory, $logger);
+    self::assertSame(0, $command->generateSubTheme('Happy Theme', [
+      'description' => $description,
+    ]));
 
-    $workingDirectory = getcwd();
-    if ($workingDirectory === FALSE) {
-      throw new \RuntimeException('Unable to determine the current working directory.');
-    }
-
-    chdir($this->temporaryDirectory);
-    try {
-      self::assertSame(0, $command->generateSubTheme('Happy Theme'));
-    }
-    finally {
-      chdir($workingDirectory);
-    }
-
-    $generatedInfoFile = $this->temporaryDirectory . '/themes/custom/happy_theme/happy_theme.info.yml';
-    self::assertFileExists($generatedInfoFile);
-    self::assertSame("name: Happy Theme\n", $this->readFile($generatedInfoFile));
+    self::assertSame(
+      $this->readDirectory($this->temporaryDirectory . '/themes/core-generated/happy_theme'),
+      $this->readDirectory($this->temporaryDirectory . '/themes/custom/happy_theme'),
+    );
     self::assertTrue($logger->hasNoticeContaining('Using "happy_theme"', 'Happy Theme'));
   }
 
@@ -137,27 +135,23 @@ final class SubThemeCommandsTest extends UnitTestCase {
    *
    * @param string[] $existingThemes
    *   Existing theme machine names.
-   * @param string|null $emulsifyPath
-   *   Drupal-root-relative or absolute Emulsify theme path.
+   * @param string|null $appRoot
+   *   Drupal application root.
    * @param \Drupal\Tests\emulsify_tools\Unit\SubThemeCommandRecordingLogger|null $logger
    *   Optional command logger.
    */
   private function createCommand(
     array $existingThemes = [],
-    ?string $emulsifyPath = NULL,
+    ?string $appRoot = NULL,
     ?SubThemeCommandRecordingLogger $logger = NULL,
   ): SubThemeCommands {
     $themeExtensionList = $this->createMock(ThemeExtensionList::class);
     $themeExtensionList->method('getList')->willReturn(array_fill_keys($existingThemes, (object) []));
-    $themeExtensionList->method('getPath')
-      ->willReturnCallback(static fn (string $themeName): string => $themeName === 'emulsify' ? (string) $emulsifyPath : '');
 
     $command = new SubThemeCommands(
       $themeExtensionList,
-      new StarterRecipeArchiveExtractor($this->filesystem),
-      new SubThemeGenerator($this->filesystem),
-      $this->filesystem,
       new ChildThemeFaviconConfigRepairer($this->temporaryDirectory, $themeExtensionList, $this->filesystem),
+      $appRoot ?? $this->temporaryDirectory,
     );
     if ($logger !== NULL) {
       $command->setLogger($logger);
@@ -171,8 +165,72 @@ final class SubThemeCommandsTest extends UnitTestCase {
    */
   private function writeStarterRecipe(string $directory): void {
     $this->filesystem->mkdir($directory);
-    $this->writeFile($directory . '/whisk.info.emulsify.yml', "hidden: false\n");
-    $this->writeFile($directory . '/whisk.info.yml', "name: EMULSIFY_NAME\n");
+    $this->writeFile($directory . '/whisk.info.yml', <<<YAML
+name: Whisk Starter
+type: theme
+base theme: false
+core_version_requirement: '^11.3 || ^12'
+version: 1.0.0
+YAML . "\n");
+    $this->writeFile($directory . '/whisk.starterkit.yml', "info: {}\n");
+    $this->writeFile($directory . '/README.md', "Whisk Starter (whisk)\n");
+  }
+
+  /**
+   * Generates the comparison theme through Drupal core directly.
+   */
+  private function generateWithCore(
+    string $machineName,
+    string $name,
+    string $description,
+    string $path,
+  ): void {
+    $input = new ArrayInput([
+      'machine-name' => $machineName,
+      '--name' => $name,
+      '--description' => $description,
+      '--starterkit' => 'whisk',
+      '--path' => $path,
+    ]);
+    $input->setInteractive(FALSE);
+    $workingDirectory = getcwd();
+
+    try {
+      self::assertSame(0, (new GenerateTheme(NULL, $this->temporaryDirectory))->run(
+        $input,
+        new BufferedOutput(),
+      ));
+    }
+    finally {
+      if ($workingDirectory !== FALSE) {
+        chdir($workingDirectory);
+      }
+    }
+  }
+
+  /**
+   * Reads every directory and file in a generated theme.
+   *
+   * @return array<string, string>
+   *   Content keyed by relative path, including directory markers.
+   */
+  private function readDirectory(string $directory): array {
+    $contents = [];
+    $iterator = new \RecursiveIteratorIterator(
+      new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
+      \RecursiveIteratorIterator::SELF_FIRST,
+    );
+    $prefixLength = strlen(rtrim($directory, DIRECTORY_SEPARATOR)) + 1;
+
+    foreach ($iterator as $file) {
+      $relativePath = substr($file->getPathname(), $prefixLength);
+      $contents[$relativePath] = $file->isDir()
+        ? 'directory'
+        : 'file:' . $this->readFile($file->getPathname());
+    }
+
+    ksort($contents);
+    return $contents;
   }
 
   /**

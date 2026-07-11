@@ -6,10 +6,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 FIXTURE_DIR="${FIXTURE_DIR:-${TMPDIR:-/tmp}/emulsify-tools-generation-smoke}"
 DRUPAL_VERSION="${DRUPAL_VERSION:-11.3.*}"
-EMULSIFY_VERSION="${EMULSIFY_VERSION:-^6}"
-TOOLS_VERSION="${TOOLS_VERSION:-1.0.99}"
+EMULSIFY_VERSION="${EMULSIFY_VERSION:-^7}"
+TOOLS_VERSION="${TOOLS_VERSION:-2.1.99}"
 DRUSH_VERSION="${DRUSH_VERSION:-^13}"
 THEME_NAME="${THEME_NAME:-watson}"
+THEME_LABEL="${THEME_LABEL:-Watson Theme}"
+THEME_DESCRIPTION="${THEME_DESCRIPTION:-Project theme: Starterkit and Drush parity.}"
 DB_URL="${DB_URL:-sqlite://sites/default/files/.ht.sqlite}"
 LOCAL_PACKAGE_DIR="${FIXTURE_DIR}/local/emulsify_tools"
 
@@ -73,7 +75,9 @@ assert_command_fails_with() {
   set -e
 
   [[ "$status" -ne 0 ]] || fail "Expected command to fail: $*"
-  grep -Fq "$expected" <<<"$output" || fail "Expected failed command output to contain: ${expected}"
+  grep -Fq "$expected" <<<"$output" || fail "Expected failed command output to contain: ${expected}
+Command output:
+${output}"
 }
 
 command -v composer >/dev/null || fail "composer is required."
@@ -165,28 +169,49 @@ vendor/bin/drush list | grep -Fq 'emulsify_tools:bake' || fail "Drush command em
 vendor/bin/drush help emulsify >/dev/null || fail "Drush help for emulsify failed."
 vendor/bin/drush help emulsify_tools:bake >/dev/null || fail "Drush help for emulsify_tools:bake failed."
 
-log "Generating ${THEME_NAME} with drush emulsify"
-vendor/bin/drush emulsify "$THEME_NAME"
+log "Generating ${THEME_NAME} with Drupal core Starterkit"
+php web/core/scripts/drupal generate-theme "$THEME_NAME" \
+  --name="$THEME_LABEL" \
+  --description="$THEME_DESCRIPTION" \
+  --starterkit=whisk \
+  --path=themes/custom \
+  --no-interaction
 
 theme_dir="web/themes/custom/${THEME_NAME}"
 info_file="${theme_dir}/${THEME_NAME}.info.yml"
+core_theme_dir="${FIXTURE_DIR}/core-generated/${THEME_NAME}"
+mkdir -p "$(dirname "$core_theme_dir")"
+mv "$theme_dir" "$core_theme_dir"
+
+log "Generating ${THEME_NAME} with drush emulsify"
+vendor/bin/drush emulsify "$THEME_NAME" \
+  --name="$THEME_LABEL" \
+  --description="$THEME_DESCRIPTION"
+
+log "Comparing Drupal core and Drush output byte-for-byte"
+diff -qr "$core_theme_dir" "$theme_dir" || fail "Drupal core and Drush generated different child themes."
 
 log "Validating generated child theme files"
 assert_dir "$theme_dir"
 assert_file "$info_file"
-assert_matches "$info_file" '^[[:space:]]*base theme:[[:space:]]*emulsify[[:space:]]*$'
-assert_contains "$info_file" 'drupal:emulsify_tools (^1.0)'
+assert_matches "$info_file" "^[[:space:]]*'?base theme'?:[[:space:]]*emulsify[[:space:]]*$"
+assert_contains "$info_file" 'drupal:emulsify_tools (^2.0)'
 assert_file "${theme_dir}/config/install/${THEME_NAME}.settings.yml"
 assert_file "${theme_dir}/config/schema/${THEME_NAME}.schema.yml"
+assert_file "${theme_dir}/project.emulsify.json"
 assert_not_exists "${theme_dir}/whisk.info.emulsify.yml"
+assert_not_exists "${theme_dir}/whisk.starterkit.yml"
+assert_not_exists "${theme_dir}/src/StarterKit.php"
 assert_not_exists "${theme_dir}/config/install/whisk.settings.yml"
 assert_not_exists "${theme_dir}/config/schema/whisk.schema.yml"
-assert_not_exists "${theme_dir}/project.emulsify.json"
+if grep -R -Fq '%%EMULSIFY_' "$theme_dir"; then
+  fail "Generated child theme contains unresolved documentation placeholders."
+fi
 
 log "Confirming existing destination fails safely through drush emulsify_tools:bake"
 guard_checksum_before="$(cksum "$info_file")"
 assert_command_fails_with \
-  "The destination theme already exists: themes/custom/${THEME_NAME}" \
+  "Theme could not be generated because the destination directory" \
   vendor/bin/drush emulsify_tools:bake "$THEME_NAME"
 guard_checksum_after="$(cksum "$info_file")"
 [[ "$guard_checksum_before" == "$guard_checksum_after" ]] || fail "Existing destination was modified: ${info_file}"
@@ -194,13 +219,12 @@ guard_checksum_after="$(cksum "$info_file")"
 log "Confirming missing Whisk source fails clearly"
 emulsify_theme_path="$(vendor/bin/drush php:eval 'echo DRUPAL_ROOT . "/" . \Drupal::service("extension.list.theme")->getPath("emulsify");')"
 whisk_dir="${emulsify_theme_path}/whisk"
-missing_whisk_dir="${whisk_dir}.generation-smoke-missing"
 assert_dir "$whisk_dir"
-mv "$whisk_dir" "$missing_whisk_dir"
+mv "${whisk_dir}/whisk.info.yml" "${whisk_dir}/whisk.info.yml.generation-smoke-missing"
 assert_command_fails_with \
-  "The Emulsify Whisk source directory was not found:" \
+  "Theme source theme whisk cannot be found" \
   vendor/bin/drush emulsify_tools:bake missing_source_theme
-mv "$missing_whisk_dir" "$whisk_dir"
+mv "${whisk_dir}/whisk.info.yml.generation-smoke-missing" "${whisk_dir}/whisk.info.yml"
 assert_not_exists "web/themes/custom/missing_source_theme"
 
 log "Enabling generated child theme"
