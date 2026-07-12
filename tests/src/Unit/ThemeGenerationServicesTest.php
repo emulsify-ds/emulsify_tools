@@ -7,7 +7,6 @@ namespace Drupal\Tests\emulsify_tools\Unit;
 use Drupal\Component\Serialization\Yaml;
 use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\DependencyInjection\YamlFileLoader;
-use Drupal\emulsify_tools\Drush\Commands\SubThemeCommands;
 use Drupal\emulsify_tools\ThemeGeneration\DrupalStarterkitThemeGenerator;
 use Drupal\emulsify_tools\ThemeGeneration\EmulsifyThemeGenerator;
 use Drupal\emulsify_tools\ThemeGeneration\LegacyThemeGenerator;
@@ -18,26 +17,11 @@ use PHPUnit\Framework\Attributes\Group;
 use Symfony\Component\Yaml\Tag\TaggedValue;
 
 /**
- * Tests Drush service wiring.
+ * Tests theme generation service wiring.
  */
 #[CoversNothing]
 #[Group('emulsify_tools')]
-final class DrushServicesTest extends UnitTestCase {
-
-  /**
-   * Tests the bake command receives the services its constructor expects.
-   */
-  public function testSubThemeCommandServiceArguments(): void {
-    $services = Yaml::decode($this->readFile(dirname(__DIR__, 3) . '/drush.services.yml'));
-
-    self::assertIsArray($services);
-    self::assertSame(SubThemeCommands::class, $services['services']['emulsify_tools.commands']['class']);
-    self::assertSame([
-      '@extension.list.theme',
-      '@Drupal\emulsify_tools\Favicon\ChildThemeFaviconConfigRepairer',
-      '@Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface',
-    ], $services['services']['emulsify_tools.commands']['arguments']);
-  }
+final class ThemeGenerationServicesTest extends UnitTestCase {
 
   /**
    * Tests the generator interface resolves to the format-selecting service.

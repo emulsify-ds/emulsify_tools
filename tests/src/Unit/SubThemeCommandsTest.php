@@ -6,7 +6,6 @@ namespace Drupal\Tests\emulsify_tools\Unit;
 
 use Drupal\Core\Extension\ThemeExtensionList;
 use Drupal\emulsify_tools\Drush\Commands\SubThemeCommands;
-use Drupal\emulsify_tools\Favicon\ChildThemeFaviconConfigRepairer;
 use Drupal\emulsify_tools\ThemeGeneration\ThemeGenerationRequest;
 use Drupal\emulsify_tools\ThemeGeneration\ThemeGenerationResult;
 use Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface;
@@ -15,7 +14,6 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LogLevel;
-use Symfony\Component\Filesystem\Filesystem;
 
 /**
  * Tests child theme Drush command validation.
@@ -23,38 +21,6 @@ use Symfony\Component\Filesystem\Filesystem;
 #[CoversClass(SubThemeCommands::class)]
 #[Group('emulsify_tools')]
 final class SubThemeCommandsTest extends UnitTestCase {
-
-  /**
-   * Filesystem helper.
-   */
-  private Filesystem $filesystem;
-
-  /**
-   * Temporary fixture directory.
-   */
-  private string $temporaryDirectory;
-
-  /**
-   * {@inheritdoc}
-   */
-  protected function setUp(): void {
-    parent::setUp();
-
-    $this->filesystem = new Filesystem();
-    $this->temporaryDirectory = sys_get_temp_dir() . '/emulsify_tools_command_' . bin2hex(random_bytes(8));
-    $this->filesystem->mkdir($this->temporaryDirectory);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  protected function tearDown(): void {
-    if (isset($this->temporaryDirectory) && $this->filesystem->exists($this->temporaryDirectory)) {
-      $this->filesystem->remove($this->temporaryDirectory);
-    }
-
-    parent::tearDown();
-  }
 
   /**
    * Tests leading-digit names are rejected.
@@ -180,7 +146,6 @@ final class SubThemeCommandsTest extends UnitTestCase {
 
     $command = new SubThemeCommands(
       $themeExtensionList,
-      new ChildThemeFaviconConfigRepairer($this->temporaryDirectory, $themeExtensionList, $this->filesystem),
       $themeGenerator ?? $this->createMock(ThemeGeneratorInterface::class),
     );
     if ($logger !== NULL) {

@@ -91,8 +91,7 @@ if [[ -x "$REPO_ROOT/vendor/bin/yaml-lint" ]]; then
   log "Linting module YAML files"
   "$REPO_ROOT/vendor/bin/yaml-lint" --parse-tags \
     "$REPO_ROOT/emulsify_tools.info.yml" \
-    "$REPO_ROOT/emulsify_tools.services.yml" \
-    "$REPO_ROOT/drush.services.yml"
+    "$REPO_ROOT/emulsify_tools.services.yml"
 fi
 
 if [[ "${KEEP_FIXTURE:-0}" != "1" ]]; then
@@ -165,10 +164,12 @@ vendor/bin/drush pm:enable emulsify_tools -y
 vendor/bin/drush theme:enable emulsify -y
 vendor/bin/drush cr -y
 
-log "Checking that the public Drush command is discoverable"
-vendor/bin/drush list | grep -Fq 'emulsify_tools:bake' || fail "Drush command emulsify_tools:bake was not discovered."
+log "Checking that the public Drush commands are discoverable"
+vendor/bin/drush list --raw | grep -Fq 'emulsify_tools:bake' || fail "Drush command emulsify_tools:bake was not discovered."
+vendor/bin/drush list --raw | grep -Fq 'emulsify_tools:repair-favicon-config' || fail "Drush command emulsify_tools:repair-favicon-config was not discovered."
 vendor/bin/drush help emulsify >/dev/null || fail "Drush help for emulsify failed."
 vendor/bin/drush help emulsify_tools:bake >/dev/null || fail "Drush help for emulsify_tools:bake failed."
+vendor/bin/drush help emulsify_tools:repair-favicon-config >/dev/null || fail "Drush help for emulsify_tools:repair-favicon-config failed."
 
 log "Generating ${THEME_NAME} with Drupal core Starterkit"
 php web/core/scripts/drupal generate-theme "$THEME_NAME" \
