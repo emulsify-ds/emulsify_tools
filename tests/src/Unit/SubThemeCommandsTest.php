@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\emulsify_tools\Unit;
 
-use Drupal\Core\Command\GenerateTheme;
 use Drupal\Core\Extension\ThemeExtensionList;
 use Drupal\emulsify_tools\Drush\Commands\SubThemeCommands;
 use Drupal\emulsify_tools\Favicon\ChildThemeFaviconConfigRepairer;
+use Drupal\emulsify_tools\ThemeGeneration\ThemeGenerationRequest;
+use Drupal\emulsify_tools\ThemeGeneration\ThemeGenerationResult;
+use Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface;
 use Drupal\Tests\UnitTestCase;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LogLevel;
-use Symfony\Component\Console\Input\ArrayInput;
-use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Filesystem\Filesystem;
 
 /**
@@ -104,30 +104,55 @@ final class SubThemeCommandsTest extends UnitTestCase {
   }
 
   /**
-   * Tests Drush and Drupal core generate byte-identical child themes.
+   * Tests generation is delegated with the exact resolved request values.
    */
-  public function testGenerateSubThemeMatchesDrupalCoreStarterkit(): void {
-    $this->writeStarterRecipe($this->temporaryDirectory . '/themes/contrib/emulsify/whisk');
+  public function testGenerateSubThemeDelegatesToThemeGenerator(): void {
     $description = 'Project theme: punctuation & metadata.';
-
-    $this->generateWithCore(
-      'happy_theme',
-      'Happy Theme',
-      $description,
-      'themes/core-generated',
-    );
-
     $logger = new SubThemeCommandRecordingLogger();
-    $command = $this->createCommand(['emulsify', 'stark'], $this->temporaryDirectory, $logger);
-    self::assertSame(0, $command->generateSubTheme('Happy Theme', [
+    $themeGenerator = $this->createMock(ThemeGeneratorInterface::class);
+    $themeGenerator->expects($this->once())
+      ->method('generate')
+      ->with(self::callback(static function (ThemeGenerationRequest $request) use ($description): bool {
+        self::assertSame('happy_project', $request->machineName);
+        self::assertSame('Happy Theme', $request->displayName);
+        self::assertSame($description, $request->description);
+        self::assertSame('whisk', $request->starterkitMachineName);
+        self::assertSame('themes/custom', $request->destinationPath);
+        return TRUE;
+      }))
+      ->willReturn(new ThemeGenerationResult(
+        7,
+        ['Theme generation failed.'],
+        'themes/custom/happy_project',
+      ));
+
+    $command = $this->createCommand(['emulsify', 'stark'], $logger, $themeGenerator);
+    self::assertSame(7, $command->generateSubTheme('Happy Project', [
+      'name' => 'Happy Theme',
       'description' => $description,
     ]));
 
-    self::assertSame(
-      $this->readDirectory($this->temporaryDirectory . '/themes/core-generated/happy_theme'),
-      $this->readDirectory($this->temporaryDirectory . '/themes/custom/happy_theme'),
-    );
-    self::assertTrue($logger->hasNoticeContaining('Using "happy_theme"', 'Happy Theme'));
+    self::assertTrue($logger->hasRecordContaining(LogLevel::NOTICE, 'Using "happy_project"', 'Happy Project'));
+    self::assertTrue($logger->hasRecordContaining(LogLevel::ERROR, 'Theme generation failed.'));
+  }
+
+  /**
+   * Tests successful generator messages are logged as notices.
+   */
+  public function testGenerateSubThemeLogsSuccessfulMessages(): void {
+    $logger = new SubThemeCommandRecordingLogger();
+    $themeGenerator = $this->createMock(ThemeGeneratorInterface::class);
+    $themeGenerator->expects($this->once())
+      ->method('generate')
+      ->willReturn(new ThemeGenerationResult(
+        0,
+        ['Theme generated successfully.'],
+        'themes/custom/happy_theme',
+      ));
+
+    $command = $this->createCommand([], $logger, $themeGenerator);
+    self::assertSame(0, $command->generateSubTheme('happy_theme'));
+    self::assertTrue($logger->hasRecordContaining(LogLevel::NOTICE, 'Theme generated successfully.'));
   }
 
   /**
@@ -135,15 +160,15 @@ final class SubThemeCommandsTest extends UnitTestCase {
    *
    * @param string[] $existingThemes
    *   Existing theme machine names.
-   * @param string|null $appRoot
-   *   Drupal application root.
    * @param \Drupal\Tests\emulsify_tools\Unit\SubThemeCommandRecordingLogger|null $logger
    *   Optional command logger.
+   * @param \Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface|null $themeGenerator
+   *   Optional theme generator.
    */
   private function createCommand(
     array $existingThemes = [],
-    ?string $appRoot = NULL,
     ?SubThemeCommandRecordingLogger $logger = NULL,
+    ?ThemeGeneratorInterface $themeGenerator = NULL,
   ): SubThemeCommands {
     $themeExtensionList = $this->createMock(ThemeExtensionList::class);
     $themeExtensionList->method('getList')->willReturn(array_fill_keys($existingThemes, (object) []));
@@ -151,108 +176,13 @@ final class SubThemeCommandsTest extends UnitTestCase {
     $command = new SubThemeCommands(
       $themeExtensionList,
       new ChildThemeFaviconConfigRepairer($this->temporaryDirectory, $themeExtensionList, $this->filesystem),
-      $appRoot ?? $this->temporaryDirectory,
+      $themeGenerator ?? $this->createMock(ThemeGeneratorInterface::class),
     );
     if ($logger !== NULL) {
       $command->setLogger($logger);
     }
 
     return $command;
-  }
-
-  /**
-   * Writes a minimal Whisk starter recipe.
-   */
-  private function writeStarterRecipe(string $directory): void {
-    $this->filesystem->mkdir($directory);
-    $this->writeFile($directory . '/whisk.info.yml', <<<YAML
-name: Whisk Starter
-type: theme
-base theme: false
-core_version_requirement: '^11.3 || ^12'
-version: 1.0.0
-YAML . "\n");
-    $this->writeFile($directory . '/whisk.starterkit.yml', "info: {}\n");
-    $this->writeFile($directory . '/README.md', "Whisk Starter (whisk)\n");
-  }
-
-  /**
-   * Generates the comparison theme through Drupal core directly.
-   */
-  private function generateWithCore(
-    string $machineName,
-    string $name,
-    string $description,
-    string $path,
-  ): void {
-    $input = new ArrayInput([
-      'machine-name' => $machineName,
-      '--name' => $name,
-      '--description' => $description,
-      '--starterkit' => 'whisk',
-      '--path' => $path,
-    ]);
-    $input->setInteractive(FALSE);
-    $workingDirectory = getcwd();
-
-    try {
-      self::assertSame(0, (new GenerateTheme(NULL, $this->temporaryDirectory))->run(
-        $input,
-        new BufferedOutput(),
-      ));
-    }
-    finally {
-      if ($workingDirectory !== FALSE) {
-        chdir($workingDirectory);
-      }
-    }
-  }
-
-  /**
-   * Reads every directory and file in a generated theme.
-   *
-   * @return array<string, string>
-   *   Content keyed by relative path, including directory markers.
-   */
-  private function readDirectory(string $directory): array {
-    $contents = [];
-    $iterator = new \RecursiveIteratorIterator(
-      new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
-      \RecursiveIteratorIterator::SELF_FIRST,
-    );
-    $prefixLength = strlen(rtrim($directory, DIRECTORY_SEPARATOR)) + 1;
-
-    foreach ($iterator as $file) {
-      $relativePath = substr($file->getPathname(), $prefixLength);
-      $contents[$relativePath] = $file->isDir()
-        ? 'directory'
-        : 'file:' . $this->readFile($file->getPathname());
-    }
-
-    ksort($contents);
-    return $contents;
-  }
-
-  /**
-   * Writes a test fixture file.
-   */
-  private function writeFile(string $path, string $contents): void {
-    $result = file_put_contents($path, $contents);
-    if ($result === FALSE) {
-      throw new \RuntimeException(sprintf('Failed to write fixture file "%s".', $path));
-    }
-  }
-
-  /**
-   * Reads a generated file.
-   */
-  private function readFile(string $path): string {
-    $contents = file_get_contents($path);
-    if ($contents === FALSE) {
-      throw new \RuntimeException(sprintf('Failed to read fixture file "%s".', $path));
-    }
-
-    return $contents;
   }
 
 }
@@ -284,11 +214,11 @@ final class SubThemeCommandRecordingLogger extends AbstractLogger {
   }
 
   /**
-   * Returns whether a notice contains all provided fragments.
+   * Returns whether a record at the requested level contains all fragments.
    */
-  public function hasNoticeContaining(string ...$fragments): bool {
+  public function hasRecordContaining(string $level, string ...$fragments): bool {
     foreach ($this->records as $record) {
-      if ($record['level'] !== LogLevel::NOTICE) {
+      if ($record['level'] !== $level) {
         continue;
       }
       foreach ($fragments as $fragment) {

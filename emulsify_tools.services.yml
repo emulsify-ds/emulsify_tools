@@ -37,6 +37,10 @@ services:
   emulsify_tools.subtheme_generator:
     class: Drupal\emulsify_tools\SubThemeGenerator
     arguments: ['@emulsify_tools.filesystem']
+  Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface:
+    alias: Drupal\emulsify_tools\ThemeGeneration\DrupalStarterkitThemeGenerator
+  Drupal\emulsify_tools\ThemeGeneration\DrupalStarterkitThemeGenerator:
+    arguments: ['%app.root%']
   Drupal\emulsify_tools\Archive\StarterRecipeArchiveExtractor:
     class: Drupal\emulsify_tools\Archive\StarterRecipeArchiveExtractor
     autowire: true

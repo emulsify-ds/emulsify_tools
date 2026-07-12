@@ -6,6 +6,8 @@ namespace Drupal\Tests\emulsify_tools\Unit;
 
 use Drupal\Component\Serialization\Yaml;
 use Drupal\emulsify_tools\Drush\Commands\SubThemeCommands;
+use Drupal\emulsify_tools\ThemeGeneration\DrupalStarterkitThemeGenerator;
+use Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface;
 use Drupal\Tests\UnitTestCase;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\Group;
@@ -28,7 +30,25 @@ final class DrushServicesTest extends UnitTestCase {
     self::assertSame([
       '@extension.list.theme',
       '@Drupal\emulsify_tools\Favicon\ChildThemeFaviconConfigRepairer',
+      '@Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface',
     ], $services['services']['emulsify_tools.commands']['arguments']);
+  }
+
+  /**
+   * Tests the generator interface resolves to the Drupal implementation.
+   */
+  public function testThemeGeneratorServiceWiring(): void {
+    $services = Yaml::decode($this->readFile(dirname(__DIR__, 3) . '/emulsify_tools.services.yml'));
+
+    self::assertIsArray($services);
+    self::assertSame(
+      DrupalStarterkitThemeGenerator::class,
+      $services['services'][ThemeGeneratorInterface::class]['alias'],
+    );
+    self::assertSame(
+      ['%app.root%'],
+      $services['services'][DrupalStarterkitThemeGenerator::class]['arguments'],
+    );
   }
 
   /**

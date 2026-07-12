@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace Drupal\emulsify_tools\Drush\Commands;
 
-use Drupal\Core\Command\GenerateTheme;
 use Drupal\Core\Extension\ThemeExtensionList;
 use Drupal\emulsify_tools\Favicon\ChildThemeFaviconConfigRepairer;
+use Drupal\emulsify_tools\ThemeGeneration\ThemeGenerationRequest;
+use Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface;
 use Drush\Attributes as CLI;
 use Drush\Commands\AutowireTrait;
 use Drush\Commands\DrushCommands;
-use Symfony\Component\Console\Input\ArrayInput;
-use Symfony\Component\Console\Output\BufferedOutput;
 
 /**
  * Provides Drush commands for Emulsify tools.
@@ -31,7 +30,7 @@ final class SubThemeCommands extends DrushCommands {
   public function __construct(
     private readonly ThemeExtensionList $themeExtensionList,
     private readonly ChildThemeFaviconConfigRepairer $childThemeFaviconConfigRepairer,
-    private readonly string $appRoot = \DRUPAL_ROOT,
+    private readonly ThemeGeneratorInterface $themeGenerator,
   ) {
     parent::__construct();
   }
@@ -66,38 +65,21 @@ final class SubThemeCommands extends DrushCommands {
       ? $options['description']
       : '';
 
-    $input = new ArrayInput([
-      'machine-name' => $machineName,
-      '--name' => $themeName,
-      '--description' => $description,
-      '--starterkit' => 'whisk',
-      '--path' => 'themes/custom',
-    ]);
-    $input->setInteractive(FALSE);
-    $output = new BufferedOutput();
-    $workingDirectory = getcwd();
+    $result = $this->themeGenerator->generate(new ThemeGenerationRequest(
+      $machineName,
+      $themeName,
+      $description,
+      'whisk',
+      'themes/custom',
+    ));
 
-    try {
-      $exitCode = (new GenerateTheme(NULL, $this->appRoot))->run($input, $output);
-    }
-    catch (\Throwable $exception) {
-      $this->logger()->error($exception->getMessage());
-      return 1;
-    }
-    finally {
-      if ($workingDirectory !== FALSE) {
-        chdir($workingDirectory);
-      }
-    }
-
-    $message = trim($output->fetch());
-    if ($message !== '') {
-      $exitCode === 0
+    foreach ($result->messages as $message) {
+      $result->exitCode === 0
         ? $this->logger()->notice($message)
         : $this->logger()->error($message);
     }
 
-    return $exitCode;
+    return $result->exitCode;
   }
 
   /**

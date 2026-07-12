@@ -4,5 +4,6 @@ services:
     arguments:
       - '@extension.list.theme'
       - '@Drupal\emulsify_tools\Favicon\ChildThemeFaviconConfigRepairer'
+      - '@Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface'
     tags:
       - { name: drush.command }
