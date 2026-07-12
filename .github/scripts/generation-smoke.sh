@@ -12,6 +12,7 @@ DRUSH_VERSION="${DRUSH_VERSION:-^13}"
 THEME_NAME="${THEME_NAME:-watson}"
 THEME_LABEL="${THEME_LABEL:-Watson Theme}"
 THEME_DESCRIPTION="${THEME_DESCRIPTION:-Project theme: Starterkit and Drush parity.}"
+LEGACY_DEPRECATION_TEXT="legacy Emulsify Drupal 6.x generation path is deprecated"
 DB_URL="${DB_URL:-sqlite://sites/default/files/.ht.sqlite}"
 LOCAL_PACKAGE_DIR="${FIXTURE_DIR}/local/emulsify_tools"
 
@@ -88,7 +89,7 @@ fi
 
 if [[ -x "$REPO_ROOT/vendor/bin/yaml-lint" ]]; then
   log "Linting module YAML files"
-  "$REPO_ROOT/vendor/bin/yaml-lint" \
+  "$REPO_ROOT/vendor/bin/yaml-lint" --parse-tags \
     "$REPO_ROOT/emulsify_tools.info.yml" \
     "$REPO_ROOT/emulsify_tools.services.yml" \
     "$REPO_ROOT/drush.services.yml"
@@ -184,9 +185,18 @@ mkdir -p "$(dirname "$core_theme_dir")"
 mv "$theme_dir" "$core_theme_dir"
 
 log "Generating ${THEME_NAME} with drush emulsify"
-vendor/bin/drush emulsify "$THEME_NAME" \
-  --name="$THEME_LABEL" \
-  --description="$THEME_DESCRIPTION"
+if ! drush_generation_output="$(
+  vendor/bin/drush emulsify "$THEME_NAME" \
+    --name="$THEME_LABEL" \
+    --description="$THEME_DESCRIPTION" 2>&1
+)"; then
+  printf '%s\n' "$drush_generation_output"
+  fail "Drush child-theme generation failed."
+fi
+printf '%s\n' "$drush_generation_output"
+if grep -Fq "$LEGACY_DEPRECATION_TEXT" <<<"$drush_generation_output"; then
+  fail "Emulsify Drupal 7.x generation unexpectedly used the deprecated legacy workflow."
+fi
 
 log "Comparing Drupal core and Drush output byte-for-byte"
 diff -qr "$core_theme_dir" "$theme_dir" || fail "Drupal core and Drush generated different child themes."

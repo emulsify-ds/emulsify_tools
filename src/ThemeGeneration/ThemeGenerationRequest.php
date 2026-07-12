@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Drupal\emulsify_tools\ThemeGeneration;
 
 /**
- * Describes a starterkit theme generation request.
+ * Describes an Emulsify theme generation request.
  */
 final readonly class ThemeGenerationRequest {
 

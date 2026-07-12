@@ -148,11 +148,16 @@ final class SubThemeCommandsTest extends UnitTestCase {
         0,
         ['Theme generated successfully.'],
         'themes/custom/happy_theme',
+        ['The legacy Emulsify Drupal 6.x generation path is deprecated.'],
       ));
 
     $command = $this->createCommand([], $logger, $themeGenerator);
     self::assertSame(0, $command->generateSubTheme('happy_theme'));
     self::assertTrue($logger->hasRecordContaining(LogLevel::NOTICE, 'Theme generated successfully.'));
+    self::assertTrue($logger->hasRecordContaining(
+      LogLevel::WARNING,
+      'legacy Emulsify Drupal 6.x generation path is deprecated',
+    ));
   }
 
   /**

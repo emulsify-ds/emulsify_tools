@@ -18,11 +18,14 @@ final readonly class ThemeGenerationResult {
    *   User-facing messages produced while generating the theme.
    * @param string|null $destinationPath
    *   The generated theme path when available.
+   * @param list<string> $warnings
+   *   User-facing warnings produced while generating the theme.
    */
   public function __construct(
     public int $exitCode,
     public array $messages,
     public ?string $destinationPath = NULL,
+    public array $warnings = [],
   ) {}
 
 }

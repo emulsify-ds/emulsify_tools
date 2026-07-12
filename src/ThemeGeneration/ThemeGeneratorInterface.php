@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Drupal\emulsify_tools\ThemeGeneration;
 
 /**
- * Generates a Drupal theme from a starterkit.
+ * Generates an Emulsify child theme.
  */
 interface ThemeGeneratorInterface {
 

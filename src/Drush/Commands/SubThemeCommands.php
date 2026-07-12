@@ -44,7 +44,7 @@ final class SubThemeCommands extends DrushCommands {
    *   Drupal Starterkit name and description options.
    *
    * @return int
-   *   The Drupal core generator exit code.
+   *   The selected theme generator exit code.
    */
   #[CLI\Command(name: 'emulsify_tools:bake', aliases: ['emulsify'])]
   #[CLI\Argument(name: 'name', description: 'The name of your Emulsify-based child theme.')]
@@ -72,6 +72,10 @@ final class SubThemeCommands extends DrushCommands {
       'whisk',
       'themes/custom',
     ));
+
+    foreach ($result->warnings as $warning) {
+      $this->logger()->warning($warning);
+    }
 
     foreach ($result->messages as $message) {
       $result->exitCode === 0
