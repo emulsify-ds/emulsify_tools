@@ -352,27 +352,45 @@ changes after running the command.
 
 - `npm run lint`
 - `composer test:unit`
+- `bash -n .github/scripts/generation-smoke.sh`
+- `shellcheck .github/scripts/generation-smoke.sh`
 - `bash .github/scripts/favicon-command-smoke.sh /path/to/drupal-site [theme_name]`
   for a prepared integration fixture with Emulsify Drupal 7.x, Emulsify Tools
   2.x, and favicon source config.
 
 ### Emulsify Drupal 7.x Generation Smoke Test
 
-To validate Emulsify Drupal 7.x core and Drush child-theme generation parity
-against this checkout, run:
+The required **Generation Smoke / Real Drupal generation** CI matrix runs this
+script with Drupal 11.3, PHP 8.3, and Drush 13, plus the claimed forward
+compatibility combination of Drupal 12.x-dev, PHP 8.5, and Drush 14.x-dev.
+Both jobs install Emulsify Drupal 7.x and this checkout as a local Composer
+package.
 
+Run the same integration test locally from the repository root:
+
+```bash
+bash .github/scripts/generation-smoke.sh
 ```
-.github/scripts/generation-smoke.sh
+
+With PHP 8.5 active, reproduce the forward-compatibility job with:
+
+```bash
+DRUPAL_VERSION=dev-main DRUSH_VERSION=14.x-dev@dev \
+  bash .github/scripts/generation-smoke.sh
 ```
 
-The script creates a disposable Drupal fixture site, installs Emulsify Drupal
-`^7`, installs this checkout through the script's local `TOOLS_VERSION` fixture
-alias, generates the same theme through Drupal core and Drush, compares every
-directory and file byte-for-byte, validates the result, and enables the Drush
-output. It intentionally exercises only the preferred 7.x Starterkit path;
-legacy 6.x compatibility is covered by the PHPUnit fixtures.
+The script creates a disposable SQLite site, verifies discovery of
+`emulsify_tools:bake`, `emulsify`, and
+`emulsify_tools:repair-favicon-config`, checks `--name` and `--description`
+parsing, compares Drupal core and Drush output byte-for-byte, and enables the
+generated theme. It intentionally exercises only the preferred 7.x Starterkit
+path; legacy 6.x compatibility is covered by the PHPUnit fixtures.
 
-Requirements: Composer and PHP. The default SQLite fixture database also requires `pdo_sqlite`.
+Local requirements are Bash, Composer 2, a compatible PHP CLI with `pdo_sqlite`,
+and standard Unix utilities (`tar`, `diff`, `grep`, and `cksum`). Composer
+installs Drupal, Drush, and Emulsify in the disposable fixture; no pre-existing
+Drupal site or global Drush installation is required. ShellCheck is required
+only to run the same script lint used by CI.
 
 Optional environment variables:
 

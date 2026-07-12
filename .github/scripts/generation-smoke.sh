@@ -101,6 +101,7 @@ fi
 log "Creating disposable Drupal fixture at ${FIXTURE_DIR}"
 cleanup_fixture
 composer create-project "drupal/recommended-project:${DRUPAL_VERSION}" "$FIXTURE_DIR" \
+  --no-dev \
   --no-interaction \
   --no-progress
 
@@ -114,6 +115,8 @@ tar \
   -C "$REPO_ROOT" \
   -cf - . | tar -C "$LOCAL_PACKAGE_DIR" -xf -
 
+# Dollar signs below are PHP variables.
+# shellcheck disable=SC2016
 php -r '
 $file = $argv[1];
 $json = json_decode(file_get_contents($file), true);
@@ -123,6 +126,8 @@ file_put_contents($file, json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_S
 
 cd "$FIXTURE_DIR"
 
+# Dollar signs below are PHP variables.
+# shellcheck disable=SC2016
 repository_json="$(php -r '
 echo json_encode([
   "type" => "path",
@@ -147,6 +152,7 @@ composer require \
   "drupal/emulsify_tools:${TOOLS_VERSION}" \
   "drush/drush:${DRUSH_VERSION}" \
   --with-all-dependencies \
+  --update-no-dev \
   --no-interaction \
   --no-progress
 
@@ -171,8 +177,14 @@ vendor/bin/drush help emulsify >/dev/null || fail "Drush help for emulsify faile
 vendor/bin/drush help emulsify_tools:bake >/dev/null || fail "Drush help for emulsify_tools:bake failed."
 vendor/bin/drush help emulsify_tools:repair-favicon-config >/dev/null || fail "Drush help for emulsify_tools:repair-favicon-config failed."
 
+if [[ -x vendor/bin/dr ]]; then
+  drupal_cli=(vendor/bin/dr)
+else
+  drupal_cli=(php web/core/scripts/drupal)
+fi
+
 log "Generating ${THEME_NAME} with Drupal core Starterkit"
-php web/core/scripts/drupal generate-theme "$THEME_NAME" \
+"${drupal_cli[@]}" generate-theme "$THEME_NAME" \
   --name="$THEME_LABEL" \
   --description="$THEME_DESCRIPTION" \
   --starterkit=whisk \
@@ -205,6 +217,8 @@ diff -qr "$core_theme_dir" "$theme_dir" || fail "Drupal core and Drush generated
 log "Validating generated child theme files"
 assert_dir "$theme_dir"
 assert_file "$info_file"
+assert_contains "$info_file" "$THEME_LABEL"
+assert_contains "$info_file" "$THEME_DESCRIPTION"
 assert_matches "$info_file" "^[[:space:]]*'?base theme'?:[[:space:]]*emulsify[[:space:]]*$"
 assert_contains "$info_file" 'drupal:emulsify_tools (^2.0)'
 assert_file "${theme_dir}/config/install/${THEME_NAME}.settings.yml"
