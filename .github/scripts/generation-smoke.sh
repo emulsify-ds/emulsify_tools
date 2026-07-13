@@ -7,20 +7,54 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 FIXTURE_DIR="${FIXTURE_DIR:-${TMPDIR:-/tmp}/emulsify-tools-generation-smoke}"
 DRUPAL_VERSION="${DRUPAL_VERSION:-11.3.*}"
 EMULSIFY_VERSION="${EMULSIFY_VERSION:-^7}"
-TOOLS_VERSION="${TOOLS_VERSION:-2.1.99}"
+TOOLS_VERSION="${TOOLS_VERSION:-2.2.x-dev}"
 DRUSH_VERSION="${DRUSH_VERSION:-^13}"
 THEME_NAME="${THEME_NAME:-watson}"
 THEME_LABEL="${THEME_LABEL:-Watson Theme}"
 THEME_DESCRIPTION="${THEME_DESCRIPTION:-Project theme: Starterkit and Drush parity.}"
 LEGACY_DEPRECATION_TEXT="legacy Emulsify Drupal 6.x generation path is deprecated"
 DB_URL="${DB_URL:-sqlite://sites/default/files/.ht.sqlite}"
+KEEP_FIXTURE="${KEEP_FIXTURE:-0}"
 LOCAL_PACKAGE_DIR="${FIXTURE_DIR}/local/emulsify_tools"
+MANIFEST_DIR="${FIXTURE_DIR}/tree-manifests"
+WHISK_INFO_SOURCE=""
+WHISK_INFO_BACKUP=""
 
 cleanup_fixture() {
   if [[ -d "$FIXTURE_DIR" ]]; then
     chmod -R u+w "$FIXTURE_DIR" 2>/dev/null || true
     rm -rf "$FIXTURE_DIR"
   fi
+}
+
+restore_whisk_source() {
+  if [[ -z "$WHISK_INFO_BACKUP" ]]; then
+    return 0
+  fi
+
+  if [[ -e "$WHISK_INFO_BACKUP" || -L "$WHISK_INFO_BACKUP" ]]; then
+    if ! mv -- "$WHISK_INFO_BACKUP" "$WHISK_INFO_SOURCE"; then
+      printf '\nERROR: Unable to restore Whisk source file: %s\n' "$WHISK_INFO_SOURCE" >&2
+      return 1
+    fi
+  elif [[ ! -e "$WHISK_INFO_SOURCE" && ! -L "$WHISK_INFO_SOURCE" ]]; then
+    printf '\nERROR: Whisk source and backup are both missing: %s\n' "$WHISK_INFO_SOURCE" >&2
+    return 1
+  fi
+
+  WHISK_INFO_SOURCE=""
+  WHISK_INFO_BACKUP=""
+}
+
+finish() {
+  local status=$?
+
+  trap - EXIT
+  restore_whisk_source || status=1
+  if [[ "$KEEP_FIXTURE" != "1" ]]; then
+    cleanup_fixture || status=1
+  fi
+  exit "$status"
 }
 
 log() {
@@ -47,21 +81,7 @@ assert_file() {
 assert_not_exists() {
   local path="$1"
 
-  [[ ! -e "$path" ]] || fail "Unexpected path exists: ${path}"
-}
-
-assert_contains() {
-  local file="$1"
-  local expected="$2"
-
-  grep -Fq "$expected" "$file" || fail "Expected ${file} to contain: ${expected}"
-}
-
-assert_matches() {
-  local file="$1"
-  local pattern="$2"
-
-  grep -Eq "$pattern" "$file" || fail "Expected ${file} to match: ${pattern}"
+  [[ ! -e "$path" && ! -L "$path" ]] || fail "Unexpected path exists: ${path}"
 }
 
 assert_command_fails_with() {
@@ -81,6 +101,140 @@ Command output:
 ${output}"
 }
 
+write_tree_manifest() {
+  local root="$1"
+  local output="$2"
+
+  assert_dir "$root"
+  mkdir -p "$(dirname "$output")"
+
+  # Dollar signs below are PHP variables.
+  # shellcheck disable=SC2016
+  php -r '
+$root = realpath($argv[1]);
+if ($root === false) {
+  fwrite(STDERR, "Unable to resolve manifest root: {$argv[1]}\n");
+  exit(1);
+}
+
+$iterator = new RecursiveIteratorIterator(
+  new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
+  RecursiveIteratorIterator::SELF_FIRST,
+);
+$entries = [];
+foreach ($iterator as $item) {
+  $path = $item->getPathname();
+  $entry = [
+    "path" => str_replace(DIRECTORY_SEPARATOR, "/", substr($path, strlen($root) + 1)),
+  ];
+
+  if ($item->isLink()) {
+    $target = readlink($path);
+    if ($target === false) {
+      fwrite(STDERR, "Unable to read symlink target: {$path}\n");
+      exit(1);
+    }
+    $entry["type"] = "symlink";
+    $entry["target"] = $target;
+  }
+  elseif ($item->isDir()) {
+    $entry["type"] = "directory";
+  }
+  elseif ($item->isFile()) {
+    $hash = hash_file("sha256", $path);
+    if ($hash === false) {
+      fwrite(STDERR, "Unable to hash file: {$path}\n");
+      exit(1);
+    }
+    $entry["type"] = "file";
+    $entry["sha256"] = $hash;
+    $entry["executable_mode"] = sprintf("%03o", $item->getPerms() & 0111);
+  }
+  else {
+    $entry["type"] = filetype($path) ?: "unknown";
+  }
+
+  $entries[] = $entry;
+}
+
+usort($entries, static fn (array $left, array $right): int => $left["path"] <=> $right["path"]);
+$lines = array_map(
+  static fn (array $entry): string => json_encode($entry, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+  $entries,
+);
+if (file_put_contents($argv[2], implode(PHP_EOL, $lines) . PHP_EOL) === false) {
+  fwrite(STDERR, "Unable to write manifest: {$argv[2]}\n");
+  exit(1);
+}
+' "$root" "$output" || fail "Unable to create tree manifest for ${root}"
+}
+
+assert_manifests_equal() {
+  local expected="$1"
+  local actual="$2"
+  local description="$3"
+
+  if ! diff -u "$expected" "$actual"; then
+    fail "Tree manifest mismatch: ${description}"
+  fi
+}
+
+assert_generated_metadata() {
+  local info_file="$1"
+
+  # Dollar signs below are PHP variables.
+  # shellcheck disable=SC2016
+  php -r '
+require $argv[1];
+
+try {
+  $info = \Drupal\Component\Serialization\Yaml::decode(file_get_contents($argv[2]));
+}
+catch (Throwable $exception) {
+  fwrite(STDERR, "Unable to parse {$argv[2]}: {$exception->getMessage()}\n");
+  exit(1);
+}
+
+if (!is_array($info)) {
+  fwrite(STDERR, "Generated info metadata is not a YAML mapping.\n");
+  exit(1);
+}
+
+$expected = [
+  "name" => $argv[3],
+  "description" => $argv[4],
+  "base theme" => "emulsify",
+];
+foreach ($expected as $key => $value) {
+  $actual = $info[$key] ?? null;
+  if ($actual !== $value) {
+    fwrite(STDERR, sprintf(
+      "Metadata mismatch for %s: expected %s, got %s\n",
+      $key,
+      var_export($value, true),
+      var_export($actual, true),
+    ));
+    exit(1);
+  }
+}
+
+$dependencies = $info["dependencies"] ?? null;
+if (!is_array($dependencies) || !in_array($argv[5], $dependencies, true)) {
+  fwrite(STDERR, sprintf(
+    "Generated dependencies do not contain %s: %s\n",
+    var_export($argv[5], true),
+    var_export($dependencies, true),
+  ));
+  exit(1);
+}
+' \
+    "${FIXTURE_DIR}/vendor/autoload.php" \
+    "$info_file" \
+    "$THEME_LABEL" \
+    "$THEME_DESCRIPTION" \
+    'drupal:emulsify_tools (^2.0)' || fail "Generated theme metadata validation failed."
+}
+
 command -v composer >/dev/null || fail "composer is required."
 command -v php >/dev/null || fail "php is required."
 if [[ "$DB_URL" == sqlite://* ]]; then
@@ -94,9 +248,10 @@ if [[ -x "$REPO_ROOT/vendor/bin/yaml-lint" ]]; then
     "$REPO_ROOT/emulsify_tools.services.yml"
 fi
 
-if [[ "${KEEP_FIXTURE:-0}" != "1" ]]; then
-  trap cleanup_fixture EXIT
-fi
+trap finish EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 log "Creating disposable Drupal fixture at ${FIXTURE_DIR}"
 cleanup_fixture
@@ -211,16 +366,17 @@ if grep -Fq "$LEGACY_DEPRECATION_TEXT" <<<"$drush_generation_output"; then
   fail "Emulsify Drupal 7.x generation unexpectedly used the deprecated legacy workflow."
 fi
 
-log "Comparing Drupal core and Drush output byte-for-byte"
-diff -qr "$core_theme_dir" "$theme_dir" || fail "Drupal core and Drush generated different child themes."
+log "Comparing Drupal core and Drush generated-tree manifests"
+core_manifest="${MANIFEST_DIR}/core-generated.jsonl"
+drush_manifest="${MANIFEST_DIR}/drush-generated.jsonl"
+write_tree_manifest "$core_theme_dir" "$core_manifest"
+write_tree_manifest "$theme_dir" "$drush_manifest"
+assert_manifests_equal "$core_manifest" "$drush_manifest" "Drupal core and Drush generated different child themes."
 
 log "Validating generated child theme files"
 assert_dir "$theme_dir"
 assert_file "$info_file"
-assert_contains "$info_file" "$THEME_LABEL"
-assert_contains "$info_file" "$THEME_DESCRIPTION"
-assert_matches "$info_file" "^[[:space:]]*'?base theme'?:[[:space:]]*emulsify[[:space:]]*$"
-assert_contains "$info_file" 'drupal:emulsify_tools (^2.0)'
+assert_generated_metadata "$info_file"
 assert_file "${theme_dir}/config/install/${THEME_NAME}.settings.yml"
 assert_file "${theme_dir}/config/schema/${THEME_NAME}.schema.yml"
 assert_file "${theme_dir}/project.emulsify.json"
@@ -233,24 +389,43 @@ if grep -R -Fq '%%EMULSIFY_' "$theme_dir"; then
   fail "Generated child theme contains unresolved documentation placeholders."
 fi
 
+log "Confirming a human-readable positional theme name is normalized"
+human_theme_label="Human Readable Theme"
+human_theme_name="human_readable_theme"
+if [[ "$THEME_NAME" == "$human_theme_name" ]]; then
+  human_theme_label="Another Human Readable Theme"
+  human_theme_name="another_human_readable_theme"
+fi
+vendor/bin/drush emulsify "$human_theme_label"
+assert_dir "web/themes/custom/${human_theme_name}"
+assert_file "web/themes/custom/${human_theme_name}/${human_theme_name}.info.yml"
+
 log "Confirming existing destination fails safely through drush emulsify_tools:bake"
-guard_checksum_before="$(cksum "$info_file")"
+guard_manifest_before="${MANIFEST_DIR}/existing-destination-before.jsonl"
+guard_manifest_after="${MANIFEST_DIR}/existing-destination-after.jsonl"
+write_tree_manifest "$theme_dir" "$guard_manifest_before"
 assert_command_fails_with \
   "Theme could not be generated because the destination directory" \
   vendor/bin/drush emulsify_tools:bake "$THEME_NAME"
-guard_checksum_after="$(cksum "$info_file")"
-[[ "$guard_checksum_before" == "$guard_checksum_after" ]] || fail "Existing destination was modified: ${info_file}"
+write_tree_manifest "$theme_dir" "$guard_manifest_after"
+assert_manifests_equal "$guard_manifest_before" "$guard_manifest_after" "Existing destination was modified."
 
 log "Confirming missing Whisk source fails clearly"
 emulsify_theme_path="$(vendor/bin/drush php:eval 'echo DRUPAL_ROOT . "/" . \Drupal::service("extension.list.theme")->getPath("emulsify");')"
 whisk_dir="${emulsify_theme_path}/whisk"
 assert_dir "$whisk_dir"
-mv "${whisk_dir}/whisk.info.yml" "${whisk_dir}/whisk.info.yml.generation-smoke-missing"
+WHISK_INFO_SOURCE="${whisk_dir}/whisk.info.yml"
+WHISK_INFO_BACKUP="${WHISK_INFO_SOURCE}.generation-smoke-missing"
+mv -- "$WHISK_INFO_SOURCE" "$WHISK_INFO_BACKUP"
+missing_source_theme="missing_source_theme"
+if [[ "$THEME_NAME" == "$missing_source_theme" ]]; then
+  missing_source_theme="missing_whisk_source_theme"
+fi
 assert_command_fails_with \
   "Theme source theme whisk cannot be found" \
-  vendor/bin/drush emulsify_tools:bake missing_source_theme
-mv "${whisk_dir}/whisk.info.yml.generation-smoke-missing" "${whisk_dir}/whisk.info.yml"
-assert_not_exists "web/themes/custom/missing_source_theme"
+  vendor/bin/drush emulsify_tools:bake "$missing_source_theme"
+restore_whisk_source || fail "Unable to restore the Whisk source after the missing-source check."
+assert_not_exists "web/themes/custom/${missing_source_theme}"
 
 log "Enabling generated child theme"
 vendor/bin/drush theme:enable "$THEME_NAME" -y

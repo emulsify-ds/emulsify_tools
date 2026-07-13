@@ -42,8 +42,10 @@ invalid modern sources fail through the Starterkit path and never silently
 fall back.
 
 For Emulsify Drupal 7.x, these equivalent commands use the same `whisk` source
-and produce byte-identical child themes when given the same machine name,
-display name, and description:
+and produce equivalent generated trees when given the same machine name,
+display name, and description. Equivalence means the same relative paths and
+entry types, SHA-256 content hashes for regular files, symlink targets, and
+regular-file executable permission bits:
 
 ```bash
 php web/core/scripts/drupal generate-theme my_theme \
@@ -383,12 +385,22 @@ DRUPAL_VERSION=dev-main DRUSH_VERSION=14.x-dev@dev \
 The script creates a disposable SQLite site, verifies discovery of
 `emulsify_tools:bake`, `emulsify`, and
 `emulsify_tools:repair-favicon-config`, checks `--name` and `--description`
-parsing, compares Drupal core and Drush output byte-for-byte, and enables the
-generated theme. It intentionally exercises only the preferred 7.x Starterkit
+parsing, and compares Drupal core and Drush generated-tree manifests. Each
+manifest records relative paths, entry types, SHA-256 regular-file hashes,
+symlink targets, and regular-file executable permission bits. This is structural
+and content parity, not complete filesystem metadata identity: timestamps,
+ownership, and other permission bits are not compared.
+
+The smoke test also parses generated YAML to verify the requested name and
+description, the Emulsify base theme, and the Emulsify Tools dependency. It
+checks human-readable positional-name normalization, full-tree preservation on
+an existing-destination failure, missing-source failure and restoration,
+Starterkit-only file removal, unresolved placeholder removal, and generated
+theme enablement. It intentionally exercises only the preferred 7.x Starterkit
 path; legacy 6.x compatibility is covered by the PHPUnit fixtures.
 
 Local requirements are Bash, Composer 2, a compatible PHP CLI with `pdo_sqlite`,
-and standard Unix utilities (`tar`, `diff`, `grep`, and `cksum`). Composer
+and standard Unix utilities (`tar`, `diff`, and `grep`). Composer
 installs Drupal, Drush, and Emulsify in the disposable fixture; no pre-existing
 Drupal site or global Drush installation is required. ShellCheck is required
 only to run the same script lint used by CI.
@@ -396,17 +408,22 @@ only to run the same script lint used by CI.
 Optional environment variables:
 
 ```
+TMPDIR=/tmp
 FIXTURE_DIR=/tmp/emulsify-tools-generation-smoke
 DRUPAL_VERSION=11.3.*
 EMULSIFY_VERSION=^7
-TOOLS_VERSION=2.1.99
+TOOLS_VERSION=2.2.x-dev
 DRUSH_VERSION=^13
 THEME_NAME=watson
 THEME_LABEL="Watson Theme"
-THEME_DESCRIPTION="Project theme"
+THEME_DESCRIPTION="Project theme: Starterkit and Drush parity."
 DB_URL=sqlite://sites/default/files/.ht.sqlite
 KEEP_FIXTURE=1
 ```
+
+`FIXTURE_DIR` defaults to a directory beneath `TMPDIR`, or beneath `/tmp` when
+`TMPDIR` is unset. Set `KEEP_FIXTURE=1` to retain the disposable Drupal site for
+inspection; any temporarily renamed Whisk source file is still restored.
 
 ### Committing Changes
 
