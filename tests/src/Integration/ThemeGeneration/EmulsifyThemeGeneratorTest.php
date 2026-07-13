@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\emulsify_tools\Integration\ThemeGeneration;
 
+use Drupal\Core\Extension\Exception\UnknownExtensionException;
 use Drupal\Core\Extension\ThemeExtensionList;
 use Drupal\emulsify_tools\ThemeGeneration\EmulsifyThemeGenerator;
 use Drupal\emulsify_tools\ThemeGeneration\ThemeGenerationRequest;
@@ -21,6 +22,21 @@ use Symfony\Component\Filesystem\Filesystem;
 #[CoversClass(EmulsifyThemeGenerator::class)]
 #[Group('emulsify_tools')]
 final class EmulsifyThemeGeneratorTest extends UnitTestCase {
+
+  /**
+   * Expected actionable missing-base-theme diagnostic.
+   */
+  private const MISSING_BASE_THEME_MESSAGE = 'The Emulsify base theme was not found. Install a compatible Emulsify Drupal 7.x release before generating a child theme.';
+
+  /**
+   * Expected actionable missing-source diagnostic.
+   */
+  private const MISSING_STARTERKIT_MESSAGE = 'The Emulsify Whisk Starterkit was not found. Install a compatible Emulsify Drupal 7.x release before generating a child theme.';
+
+  /**
+   * Expected actionable missing-metadata diagnostic.
+   */
+  private const MISSING_STARTERKIT_CONFIG_MESSAGE = 'The Emulsify Whisk Starterkit metadata file whisk.starterkit.yml was not found. Install a compatible Emulsify Drupal 7.x release before generating a child theme.';
 
   /**
    * Filesystem helper.
@@ -145,6 +161,75 @@ final class EmulsifyThemeGeneratorTest extends UnitTestCase {
   }
 
   /**
+   * Tests a missing Emulsify base theme fails before either generator runs.
+   */
+  public function testMissingBaseThemeReturnsActionableResult(): void {
+    $starterkitGenerator = $this->createMock(ThemeGeneratorInterface::class);
+    $starterkitGenerator->expects($this->never())->method('generate');
+    $legacyFactoryCalls = 0;
+    $generator = $this->createGenerator(
+      $starterkitGenerator,
+      function () use (&$legacyFactoryCalls): ThemeGeneratorInterface {
+        $legacyFactoryCalls++;
+        return $this->createMock(ThemeGeneratorInterface::class);
+      },
+      FALSE,
+    );
+
+    $this->assertPreflightFailure(
+      $generator->generate($this->createRequest()),
+      self::MISSING_BASE_THEME_MESSAGE,
+    );
+    self::assertSame(0, $legacyFactoryCalls);
+  }
+
+  /**
+   * Tests a missing Whisk directory fails before either generator runs.
+   */
+  public function testMissingWhiskDirectoryReturnsActionableResult(): void {
+    $this->filesystem->mkdir($this->appRoot . '/themes/contrib/emulsify');
+    $starterkitGenerator = $this->createMock(ThemeGeneratorInterface::class);
+    $starterkitGenerator->expects($this->never())->method('generate');
+    $legacyFactoryCalls = 0;
+    $generator = $this->createGenerator(
+      $starterkitGenerator,
+      function () use (&$legacyFactoryCalls): ThemeGeneratorInterface {
+        $legacyFactoryCalls++;
+        return $this->createMock(ThemeGeneratorInterface::class);
+      },
+    );
+
+    $this->assertPreflightFailure(
+      $generator->generate($this->createRequest()),
+      self::MISSING_STARTERKIT_MESSAGE,
+    );
+    self::assertSame(0, $legacyFactoryCalls);
+  }
+
+  /**
+   * Tests missing Starterkit metadata fails before Drupal core runs.
+   */
+  public function testMissingStarterkitConfigReturnsActionableResult(): void {
+    $this->writeWhiskSource($this->validInfoFile(), NULL, TRUE);
+    $starterkitGenerator = $this->createMock(ThemeGeneratorInterface::class);
+    $starterkitGenerator->expects($this->never())->method('generate');
+    $legacyFactoryCalls = 0;
+    $generator = $this->createGenerator(
+      $starterkitGenerator,
+      function () use (&$legacyFactoryCalls): ThemeGeneratorInterface {
+        $legacyFactoryCalls++;
+        return $this->createMock(ThemeGeneratorInterface::class);
+      },
+    );
+
+    $this->assertPreflightFailure(
+      $generator->generate($this->createRequest()),
+      self::MISSING_STARTERKIT_CONFIG_MESSAGE,
+    );
+    self::assertSame(0, $legacyFactoryCalls);
+  }
+
+  /**
    * Tests incomplete or malformed modern metadata never selects legacy.
    */
   #[DataProvider('incompleteModernSourceProvider')]
@@ -190,7 +275,6 @@ version: 7.x-dev
 YAML . "\n";
 
     return [
-      'missing starterkit config' => [$validInfo, NULL],
       'orphan starterkit config' => [NULL, "info: {}\n"],
       'malformed starterkit config' => [$validInfo, "info: [\n"],
       'malformed info file' => ["name: [\n", "info: {}\n"],
@@ -203,14 +287,19 @@ YAML . "\n";
   private function createGenerator(
     ThemeGeneratorInterface $starterkitGenerator,
     \Closure $legacyFactory,
+    bool $baseThemeAvailable = TRUE,
   ): EmulsifyThemeGenerator {
     $themeExtensionList = $this->createMock(ThemeExtensionList::class);
-    $themeExtensionList->method('exists')
-      ->with('emulsify')
-      ->willReturn(TRUE);
-    $themeExtensionList->method('getPath')
-      ->with('emulsify')
-      ->willReturn('themes/contrib/emulsify');
+    if ($baseThemeAvailable) {
+      $themeExtensionList->method('getPath')
+        ->with('emulsify')
+        ->willReturn('themes/contrib/emulsify');
+    }
+    else {
+      $themeExtensionList->method('getPath')
+        ->with('emulsify')
+        ->willThrowException(new UnknownExtensionException('The Emulsify theme does not exist.'));
+    }
 
     return new EmulsifyThemeGenerator(
       $themeExtensionList,
@@ -218,6 +307,18 @@ YAML . "\n";
       $legacyFactory,
       $this->appRoot,
     );
+  }
+
+  /**
+   * Asserts an actionable preflight failure.
+   */
+  private function assertPreflightFailure(
+    ThemeGenerationResult $result,
+    string $expectedMessage,
+  ): void {
+    self::assertSame(1, $result->exitCode);
+    self::assertSame([$expectedMessage], $result->messages);
+    self::assertNull($result->destinationPath);
   }
 
   /**

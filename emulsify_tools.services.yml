@@ -40,6 +40,8 @@ services:
     deprecated: 'The "%service_id%" service is deprecated in emulsify_tools:2.2.0 and is removed from emulsify_tools:3.0.0. Use Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface instead.'
   Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface:
     alias: Drupal\emulsify_tools\ThemeGeneration\EmulsifyThemeGenerator
+  Drupal\emulsify_tools\ThemeGeneration\ThemeMachineNameFactory:
+    arguments: ['@transliteration', '@extension.list.theme']
   Drupal\emulsify_tools\ThemeGeneration\EmulsifyThemeGenerator:
     arguments:
       - '@extension.list.theme'

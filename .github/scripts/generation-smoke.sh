@@ -13,12 +13,14 @@ THEME_NAME="${THEME_NAME:-watson}"
 THEME_LABEL="${THEME_LABEL:-Watson Theme}"
 THEME_DESCRIPTION="${THEME_DESCRIPTION:-Project theme: Starterkit and Drush parity.}"
 LEGACY_DEPRECATION_TEXT="legacy Emulsify Drupal 6.x generation path is deprecated"
+MISSING_STARTERKIT_TEXT="The Emulsify Whisk Starterkit was not found. Install a compatible Emulsify Drupal 7.x release before generating a child theme."
+MISSING_STARTERKIT_CONFIG_TEXT="The Emulsify Whisk Starterkit metadata file whisk.starterkit.yml was not found. Install a compatible Emulsify Drupal 7.x release before generating a child theme."
 DB_URL="${DB_URL:-sqlite://sites/default/files/.ht.sqlite}"
 KEEP_FIXTURE="${KEEP_FIXTURE:-0}"
 LOCAL_PACKAGE_DIR="${FIXTURE_DIR}/local/emulsify_tools"
 MANIFEST_DIR="${FIXTURE_DIR}/tree-manifests"
-WHISK_INFO_SOURCE=""
-WHISK_INFO_BACKUP=""
+WHISK_SOURCE_PATH=""
+WHISK_SOURCE_BACKUP=""
 
 cleanup_fixture() {
   if [[ -d "$FIXTURE_DIR" ]]; then
@@ -28,22 +30,22 @@ cleanup_fixture() {
 }
 
 restore_whisk_source() {
-  if [[ -z "$WHISK_INFO_BACKUP" ]]; then
+  if [[ -z "$WHISK_SOURCE_BACKUP" ]]; then
     return 0
   fi
 
-  if [[ -e "$WHISK_INFO_BACKUP" || -L "$WHISK_INFO_BACKUP" ]]; then
-    if ! mv -- "$WHISK_INFO_BACKUP" "$WHISK_INFO_SOURCE"; then
-      printf '\nERROR: Unable to restore Whisk source file: %s\n' "$WHISK_INFO_SOURCE" >&2
+  if [[ -e "$WHISK_SOURCE_BACKUP" || -L "$WHISK_SOURCE_BACKUP" ]]; then
+    if ! mv -- "$WHISK_SOURCE_BACKUP" "$WHISK_SOURCE_PATH"; then
+      printf '\nERROR: Unable to restore Whisk source path: %s\n' "$WHISK_SOURCE_PATH" >&2
       return 1
     fi
-  elif [[ ! -e "$WHISK_INFO_SOURCE" && ! -L "$WHISK_INFO_SOURCE" ]]; then
-    printf '\nERROR: Whisk source and backup are both missing: %s\n' "$WHISK_INFO_SOURCE" >&2
+  elif [[ ! -e "$WHISK_SOURCE_PATH" && ! -L "$WHISK_SOURCE_PATH" ]]; then
+    printf '\nERROR: Whisk source and backup are both missing: %s\n' "$WHISK_SOURCE_PATH" >&2
     return 1
   fi
 
-  WHISK_INFO_SOURCE=""
-  WHISK_INFO_BACKUP=""
+  WHISK_SOURCE_PATH=""
+  WHISK_SOURCE_BACKUP=""
 }
 
 finish() {
@@ -330,6 +332,7 @@ vendor/bin/drush list --raw | grep -Fq 'emulsify_tools:bake' || fail "Drush comm
 vendor/bin/drush list --raw | grep -Fq 'emulsify_tools:repair-favicon-config' || fail "Drush command emulsify_tools:repair-favicon-config was not discovered."
 vendor/bin/drush help emulsify >/dev/null || fail "Drush help for emulsify failed."
 vendor/bin/drush help emulsify_tools:bake >/dev/null || fail "Drush help for emulsify_tools:bake failed."
+vendor/bin/drush help emulsify_tools:generate-theme >/dev/null || fail "Drush help for emulsify_tools:generate-theme failed."
 vendor/bin/drush help emulsify_tools:repair-favicon-config >/dev/null || fail "Drush help for emulsify_tools:repair-favicon-config failed."
 
 if [[ -x vendor/bin/dr ]]; then
@@ -390,13 +393,13 @@ if grep -R -Fq '%%EMULSIFY_' "$theme_dir"; then
 fi
 
 log "Confirming a human-readable positional theme name is normalized"
-human_theme_label="Human Readable Theme"
-human_theme_name="human_readable_theme"
+human_theme_label="Crème Brûlée Theme"
+human_theme_name="creme_brulee_theme"
 if [[ "$THEME_NAME" == "$human_theme_name" ]]; then
-  human_theme_label="Another Human Readable Theme"
-  human_theme_name="another_human_readable_theme"
+  human_theme_label="Another Crème Brûlée Theme"
+  human_theme_name="another_creme_brulee_theme"
 fi
-vendor/bin/drush emulsify "$human_theme_label"
+vendor/bin/drush emulsify_tools:generate-theme "$human_theme_label"
 assert_dir "web/themes/custom/${human_theme_name}"
 assert_file "web/themes/custom/${human_theme_name}/${human_theme_name}.info.yml"
 
@@ -414,18 +417,32 @@ log "Confirming missing Whisk source fails clearly"
 emulsify_theme_path="$(vendor/bin/drush php:eval 'echo DRUPAL_ROOT . "/" . \Drupal::service("extension.list.theme")->getPath("emulsify");')"
 whisk_dir="${emulsify_theme_path}/whisk"
 assert_dir "$whisk_dir"
-WHISK_INFO_SOURCE="${whisk_dir}/whisk.info.yml"
-WHISK_INFO_BACKUP="${WHISK_INFO_SOURCE}.generation-smoke-missing"
-mv -- "$WHISK_INFO_SOURCE" "$WHISK_INFO_BACKUP"
+WHISK_SOURCE_PATH="$whisk_dir"
+WHISK_SOURCE_BACKUP="${WHISK_SOURCE_PATH}.generation-smoke-missing"
+mv -- "$WHISK_SOURCE_PATH" "$WHISK_SOURCE_BACKUP"
 missing_source_theme="missing_source_theme"
 if [[ "$THEME_NAME" == "$missing_source_theme" ]]; then
   missing_source_theme="missing_whisk_source_theme"
 fi
 assert_command_fails_with \
-  "Theme source theme whisk cannot be found" \
+  "$MISSING_STARTERKIT_TEXT" \
   vendor/bin/drush emulsify_tools:bake "$missing_source_theme"
 restore_whisk_source || fail "Unable to restore the Whisk source after the missing-source check."
 assert_not_exists "web/themes/custom/${missing_source_theme}"
+
+log "Confirming missing Whisk Starterkit metadata fails clearly"
+WHISK_SOURCE_PATH="${whisk_dir}/whisk.starterkit.yml"
+WHISK_SOURCE_BACKUP="${WHISK_SOURCE_PATH}.generation-smoke-missing"
+mv -- "$WHISK_SOURCE_PATH" "$WHISK_SOURCE_BACKUP"
+missing_metadata_theme="missing_starterkit_metadata_theme"
+if [[ "$THEME_NAME" == "$missing_metadata_theme" ]]; then
+  missing_metadata_theme="missing_whisk_metadata_theme"
+fi
+assert_command_fails_with \
+  "$MISSING_STARTERKIT_CONFIG_TEXT" \
+  vendor/bin/drush emulsify_tools:bake "$missing_metadata_theme"
+restore_whisk_source || fail "Unable to restore the Whisk source after the missing-metadata check."
+assert_not_exists "web/themes/custom/${missing_metadata_theme}"
 
 log "Enabling generated child theme"
 vendor/bin/drush theme:enable "$THEME_NAME" -y

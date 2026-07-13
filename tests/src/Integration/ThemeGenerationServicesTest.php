@@ -10,6 +10,7 @@ use Drupal\emulsify_tools\ThemeGeneration\DrupalStarterkitThemeGenerator;
 use Drupal\emulsify_tools\ThemeGeneration\EmulsifyThemeGenerator;
 use Drupal\emulsify_tools\ThemeGeneration\LegacyThemeGenerator;
 use Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface;
+use Drupal\emulsify_tools\ThemeGeneration\ThemeMachineNameFactory;
 use Drupal\Tests\UnitTestCase;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\Group;
@@ -34,6 +35,7 @@ final class ThemeGenerationServicesTest extends UnitTestCase {
     self::assertTrue($container->hasDefinition(EmulsifyThemeGenerator::class));
     self::assertTrue($container->hasDefinition(DrupalStarterkitThemeGenerator::class));
     self::assertTrue($container->hasDefinition(LegacyThemeGenerator::class));
+    self::assertTrue($container->hasDefinition(ThemeMachineNameFactory::class));
   }
 
   /**

@@ -4,12 +4,18 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\emulsify_tools\Unit;
 
+use Drupal\Component\Transliteration\TransliterationInterface;
 use Drupal\Core\Extension\ThemeExtensionList;
 use Drupal\emulsify_tools\Drush\Commands\SubThemeCommands;
 use Drupal\emulsify_tools\ThemeGeneration\ThemeGenerationRequest;
 use Drupal\emulsify_tools\ThemeGeneration\ThemeGenerationResult;
 use Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface;
+use Drupal\emulsify_tools\ThemeGeneration\ThemeMachineNameFactory;
 use Drupal\Tests\UnitTestCase;
+use Drush\Attributes\Argument as ArgumentAttribute;
+use Drush\Attributes\Command as CommandAttribute;
+use Drush\Attributes\Help;
+use Drush\Attributes\Option;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -17,57 +23,35 @@ use Psr\Log\AbstractLogger;
 use Psr\Log\LogLevel;
 
 /**
- * Tests child theme Drush command validation.
+ * Tests child-theme Drush command behavior.
  */
 #[CoversClass(SubThemeCommands::class)]
 #[Group('emulsify_tools')]
 final class SubThemeCommandsTest extends UnitTestCase {
 
   /**
-   * Tests leading-digit names are rejected.
+   * Tests command aliases and distinct positional and display-name help.
    */
-  public function testGenerateSubThemeRejectsLeadingDigitMachineName(): void {
-    $command = $this->createCommand();
+  public function testCommandMetadata(): void {
+    $method = new \ReflectionMethod(SubThemeCommands::class, 'generateSubTheme');
+    $command = $method->getAttributes(CommandAttribute::class)[0]->newInstance();
+    self::assertSame('emulsify_tools:bake', $command->name);
+    self::assertSame(['emulsify', 'emulsify_tools:generate-theme'], $command->aliases);
 
-    $this->expectException(\InvalidArgumentException::class);
-    $this->expectExceptionMessage('must start with a lowercase letter');
-    $command->generateSubTheme('123 Theme');
-  }
+    $help = $method->getAttributes(Help::class)[0]->newInstance();
+    self::assertStringContainsString('positional value', (string) $help->synopsis);
+    self::assertStringContainsString('--name', (string) $help->synopsis);
 
-  /**
-   * Tests names over Drupal's extension-name length limit are rejected.
-   */
-  public function testGenerateSubThemeRejectsTooLongMachineName(): void {
-    $command = $this->createCommand();
-
-    $this->expectException(\InvalidArgumentException::class);
-    $this->expectExceptionMessage(sprintf(
-      'must be %d characters or fewer',
-      \DRUPAL_EXTENSION_NAME_MAX_LENGTH,
-    ));
-    $command->generateSubTheme(str_repeat('a', \DRUPAL_EXTENSION_NAME_MAX_LENGTH + 1));
-  }
-
-  /**
-   * Tests the Emulsify base theme machine name is reserved.
-   */
-  public function testGenerateSubThemeRejectsEmulsifyBaseThemeName(): void {
-    $command = $this->createCommand();
-
-    $this->expectException(\InvalidArgumentException::class);
-    $this->expectExceptionMessage('reserved by the Emulsify base theme');
-    $command->generateSubTheme('emulsify');
-  }
-
-  /**
-   * Tests names that collide with existing themes are rejected.
-   */
-  public function testGenerateSubThemeRejectsExistingThemeName(): void {
-    $command = $this->createCommand(['stark']);
-
-    $this->expectException(\InvalidArgumentException::class);
-    $this->expectExceptionMessage('already used by an existing Drupal theme');
-    $command->generateSubTheme('Stark');
+    $argument = $method->getAttributes(ArgumentAttribute::class)[0]->newInstance();
+    self::assertStringContainsString('machine name or label', $argument->description);
+    $nameOption = array_values(array_filter(
+      array_map(
+        static fn (\ReflectionAttribute $attribute): Option => $attribute->newInstance(),
+        $method->getAttributes(Option::class),
+      ),
+      static fn (Option $option): bool => $option->name === 'name',
+    ))[0];
+    self::assertStringContainsString('Human-readable display name', $nameOption->description);
   }
 
   /**
@@ -75,7 +59,8 @@ final class SubThemeCommandsTest extends UnitTestCase {
    */
   public function testGenerateSubThemeUsesExplicitDisplayName(): void {
     $generator = $this->createSuccessfulGenerator();
-    $command = $this->createCommand(themeGenerator: $generator);
+    $logger = new SubThemeCommandRecordingLogger();
+    $command = $this->createCommand(logger: $logger, themeGenerator: $generator);
 
     self::assertSame(0, $command->generateSubTheme('Happy Project', [
       'name' => 'Happy Theme',
@@ -88,6 +73,11 @@ final class SubThemeCommandsTest extends UnitTestCase {
     self::assertSame('Project theme.', $request->description);
     self::assertSame('whisk', $request->starterkitMachineName);
     self::assertSame('themes/custom', $request->destinationPath);
+    self::assertTrue($logger->hasRecordContaining(
+      LogLevel::NOTICE,
+      'Using "happy_project"',
+      'Happy Project',
+    ));
   }
 
   /**
@@ -226,10 +216,14 @@ final class SubThemeCommandsTest extends UnitTestCase {
     ?ThemeGeneratorInterface $themeGenerator = NULL,
   ): SubThemeCommands {
     $themeExtensionList = $this->createMock(ThemeExtensionList::class);
-    $themeExtensionList->method('getList')->willReturn(array_fill_keys($existingThemes, (object) []));
+    $themeExtensionList->method('exists')
+      ->willReturnCallback(static fn (string $name): bool => in_array($name, $existingThemes, TRUE));
+    $transliteration = $this->createMock(TransliterationInterface::class);
+    $transliteration->method('transliterate')
+      ->willReturnCallback(static fn (string $name): string => $name);
 
     $command = new SubThemeCommands(
-      $themeExtensionList,
+      new ThemeMachineNameFactory($transliteration, $themeExtensionList),
       $themeGenerator ?? $this->createSuccessfulGenerator(),
     );
     if ($logger !== NULL) {

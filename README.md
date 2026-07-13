@@ -38,8 +38,8 @@ Emulsify Tools automatically selects generation behavior from the installed
 A recognizable legacy `whisk.info.emulsify.yml` source with neither
 `whisk.info.yml` nor `whisk.starterkit.yml` uses the Emulsify Drupal 6.x
 compatibility workflow instead; no command flag is needed. Incomplete or
-invalid modern sources fail through the Starterkit path and never silently
-fall back.
+missing Starterkit sources fail a focused Emulsify preflight, while malformed
+modern metadata is reported by Drupal core. Neither case silently falls back.
 
 For Emulsify Drupal 7.x, these equivalent commands use the same `whisk` source
 and produce equivalent generated trees when given the same machine name,
@@ -62,12 +62,21 @@ drush emulsify_tools:bake my_theme \
 drush emulsify my_theme \
   --name="My Theme" \
   --description="Project theme"
+
+drush emulsify_tools:generate-theme my_theme \
+  --name="My Theme" \
+  --description="Project theme"
 ```
 
-Both Drush forms are aliases. The generated child theme uses `emulsify` as its
-runtime parent theme and is created at `web/themes/custom/my_theme` in a
-standard Composer-based Drupal project. A human-readable positional value such
-as `drush emulsify "My Theme"` remains supported and resolves to `my_theme`.
+All three Drush forms invoke the same command. The generated child theme uses
+`emulsify` as its runtime parent theme and is created at
+`web/themes/custom/my_theme` in a standard Composer-based Drupal project. A
+human-readable positional value such as `drush emulsify "My Theme"` remains
+supported and resolves to `my_theme`.
+Labels are trimmed, transliterated to ASCII, lowercased, and normalized with
+single underscores; for example, `Crème Brûlée Theme` resolves to
+`creme_brulee_theme`. The `--name` option controls the human-readable display
+name and does not override the resolved machine name.
 
 The Emulsify Drupal 6.x compatibility workflow warns that the legacy generation
 path is deprecated, will be removed in Emulsify Tools 3.0.0, and should be
@@ -275,7 +284,8 @@ Note that the `switch`, `endswitch`, and `case` tags are required and the `defau
 Upgrade the Emulsify parent theme to 7.x before Emulsify Tools 3.0.0 removes the
 legacy generator. Once the installed `whisk` source contains Starterkit
 metadata, the same `drush emulsify` and `drush emulsify_tools:bake` commands
-automatically use Drupal core; no command configuration change is required.
+and the descriptive `drush emulsify_tools:generate-theme` alias automatically
+use Drupal core; no command configuration change is required.
 Existing generated child themes are not rewritten. Generation continues to
 protect an existing destination, so use a new machine name unless you have
 intentionally removed the old generated directory.
@@ -383,7 +393,7 @@ DRUPAL_VERSION=dev-main DRUSH_VERSION=14.x-dev@dev \
 ```
 
 The script creates a disposable SQLite site, verifies discovery of
-`emulsify_tools:bake`, `emulsify`, and
+`emulsify_tools:bake`, `emulsify`, `emulsify_tools:generate-theme`, and
 `emulsify_tools:repair-favicon-config`, checks `--name` and `--description`
 parsing, and compares Drupal core and Drush generated-tree manifests. Each
 manifest records relative paths, entry types, SHA-256 regular-file hashes,
@@ -394,10 +404,10 @@ ownership, and other permission bits are not compared.
 The smoke test also parses generated YAML to verify the requested name and
 description, the Emulsify base theme, and the Emulsify Tools dependency. It
 checks human-readable positional-name normalization, full-tree preservation on
-an existing-destination failure, missing-source failure and restoration,
-Starterkit-only file removal, unresolved placeholder removal, and generated
-theme enablement. It intentionally exercises only the preferred 7.x Starterkit
-path; legacy 6.x compatibility is covered by the PHPUnit fixtures.
+an existing-destination failure, missing-source and missing-metadata diagnostics
+with restoration, Starterkit-only file removal, unresolved placeholder removal,
+and generated theme enablement. It intentionally exercises only the preferred
+7.x Starterkit path; legacy 6.x compatibility is covered by the PHPUnit fixtures.
 
 Local requirements are Bash, Composer 2, a compatible PHP CLI with `pdo_sqlite`,
 and standard Unix utilities (`tar`, `diff`, and `grep`). Composer
@@ -423,7 +433,7 @@ KEEP_FIXTURE=1
 
 `FIXTURE_DIR` defaults to a directory beneath `TMPDIR`, or beneath `/tmp` when
 `TMPDIR` is unset. Set `KEEP_FIXTURE=1` to retain the disposable Drupal site for
-inspection; any temporarily renamed Whisk source file is still restored.
+inspection; any temporarily renamed Whisk source path is still restored.
 
 ### Committing Changes
 
