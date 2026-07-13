@@ -11,6 +11,7 @@ use Drupal\emulsify_tools\ThemeGeneration\ThemeGenerationResult;
 use Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface;
 use Drupal\Tests\UnitTestCase;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LogLevel;
@@ -70,36 +71,122 @@ final class SubThemeCommandsTest extends UnitTestCase {
   }
 
   /**
-   * Tests generation is delegated with the exact resolved request values.
+   * Tests an explicit display-name option is passed to the generator.
    */
-  public function testGenerateSubThemeDelegatesToThemeGenerator(): void {
-    $description = 'Project theme: punctuation & metadata.';
-    $logger = new SubThemeCommandRecordingLogger();
-    $themeGenerator = $this->createMock(ThemeGeneratorInterface::class);
-    $themeGenerator->expects($this->once())
-      ->method('generate')
-      ->with(self::callback(static function (ThemeGenerationRequest $request) use ($description): bool {
-        self::assertSame('happy_project', $request->machineName);
-        self::assertSame('Happy Theme', $request->displayName);
-        self::assertSame($description, $request->description);
-        self::assertSame('whisk', $request->starterkitMachineName);
-        self::assertSame('themes/custom', $request->destinationPath);
-        return TRUE;
-      }))
-      ->willReturn(new ThemeGenerationResult(
-        7,
-        ['Theme generation failed.'],
-        'themes/custom/happy_project',
-      ));
+  public function testGenerateSubThemeUsesExplicitDisplayName(): void {
+    $generator = $this->createSuccessfulGenerator();
+    $command = $this->createCommand(themeGenerator: $generator);
 
-    $command = $this->createCommand(['emulsify', 'stark'], $logger, $themeGenerator);
-    self::assertSame(7, $command->generateSubTheme('Happy Project', [
+    self::assertSame(0, $command->generateSubTheme('Happy Project', [
       'name' => 'Happy Theme',
-      'description' => $description,
+      'description' => 'Project theme.',
     ]));
 
-    self::assertTrue($logger->hasRecordContaining(LogLevel::NOTICE, 'Using "happy_project"', 'Happy Project'));
-    self::assertTrue($logger->hasRecordContaining(LogLevel::ERROR, 'Theme generation failed.'));
+    $request = $generator->request();
+    self::assertSame('happy_project', $request->machineName);
+    self::assertSame('Happy Theme', $request->displayName);
+    self::assertSame('Project theme.', $request->description);
+    self::assertSame('whisk', $request->starterkitMachineName);
+    self::assertSame('themes/custom', $request->destinationPath);
+  }
+
+  /**
+   * Tests the positional value is the default display name.
+   */
+  public function testGenerateSubThemeDefaultsDisplayNameToArgument(): void {
+    $generator = $this->createSuccessfulGenerator();
+    $command = $this->createCommand(themeGenerator: $generator);
+
+    self::assertSame(0, $command->generateSubTheme('Happy Project'));
+    self::assertSame('Happy Project', $generator->request()->displayName);
+  }
+
+  /**
+   * Tests explicit empty display names are forwarded without reinterpretation.
+   */
+  #[DataProvider('emptyDisplayNameProvider')]
+  public function testGenerateSubThemePreservesEmptyDisplayName(string $displayName): void {
+    $generator = $this->createSuccessfulGenerator();
+    $command = $this->createCommand(themeGenerator: $generator);
+
+    self::assertSame(0, $command->generateSubTheme('happy_theme', ['name' => $displayName]));
+    self::assertSame($displayName, $generator->request()->displayName);
+  }
+
+  /**
+   * Provides empty display-name options.
+   *
+   * @return array<string, array{string}>
+   *   Display names keyed by scenario.
+   */
+  public static function emptyDisplayNameProvider(): array {
+    return [
+      'empty' => [''],
+      'whitespace only' => [" \t "],
+    ];
+  }
+
+  /**
+   * Tests descriptions are forwarded without shell or YAML interpretation.
+   */
+  #[DataProvider('descriptionProvider')]
+  public function testGenerateSubThemePreservesDescription(string $description): void {
+    $generator = $this->createSuccessfulGenerator();
+    $command = $this->createCommand(themeGenerator: $generator);
+
+    self::assertSame(0, $command->generateSubTheme('happy_theme', ['description' => $description]));
+    self::assertSame($description, $generator->request()->description);
+  }
+
+  /**
+   * Provides descriptions with significant punctuation and whitespace.
+   *
+   * @return array<string, array{string}>
+   *   Descriptions keyed by scenario.
+   */
+  public static function descriptionProvider(): array {
+    return [
+      'quotes' => ['A "quoted" theme with an apostrophe\'s metadata.'],
+      'ampersand' => ['Research & Development'],
+      'colon' => ['Project theme: metadata'],
+      'newlines' => ["First line\nSecond line"],
+      'YAML-significant characters' => ["---\nkey: [one, two]\n# comment\n*alias\n!tag"],
+    ];
+  }
+
+  /**
+   * Tests nonzero generator results and failure-message logging.
+   */
+  public function testGenerateSubThemeReturnsNonzeroExitCodeAndLogsErrors(): void {
+    $logger = new SubThemeCommandRecordingLogger();
+    $generator = new SubThemeCommandFakeThemeGenerator(new ThemeGenerationResult(
+      7,
+      ['First generation failure.', 'Second generation failure.'],
+    ));
+    $command = $this->createCommand(logger: $logger, themeGenerator: $generator);
+
+    self::assertSame(7, $command->generateSubTheme('happy_theme'));
+    self::assertTrue($logger->hasRecordContaining(LogLevel::ERROR, 'First generation failure.'));
+    self::assertTrue($logger->hasRecordContaining(LogLevel::ERROR, 'Second generation failure.'));
+  }
+
+  /**
+   * Tests generator exceptions retain their existing propagation behavior.
+   */
+  public function testGenerateSubThemePropagatesGeneratorException(): void {
+    $exception = new \RuntimeException('Generator exploded.');
+    $generator = new SubThemeCommandFakeThemeGenerator($exception);
+    $command = $this->createCommand(themeGenerator: $generator);
+
+    try {
+      $command->generateSubTheme('happy_theme');
+      self::fail('Expected the generator exception to be propagated.');
+    }
+    catch (\RuntimeException $caught) {
+      self::assertSame($exception, $caught);
+    }
+
+    self::assertSame('happy_theme', $generator->request()->machineName);
   }
 
   /**
@@ -107,15 +194,12 @@ final class SubThemeCommandsTest extends UnitTestCase {
    */
   public function testGenerateSubThemeLogsSuccessfulMessages(): void {
     $logger = new SubThemeCommandRecordingLogger();
-    $themeGenerator = $this->createMock(ThemeGeneratorInterface::class);
-    $themeGenerator->expects($this->once())
-      ->method('generate')
-      ->willReturn(new ThemeGenerationResult(
-        0,
-        ['Theme generated successfully.'],
-        'themes/custom/happy_theme',
-        ['The legacy Emulsify Drupal 6.x generation path is deprecated.'],
-      ));
+    $themeGenerator = new SubThemeCommandFakeThemeGenerator(new ThemeGenerationResult(
+      0,
+      ['Theme generated successfully.'],
+      'themes/custom/happy_theme',
+      ['The legacy Emulsify Drupal 6.x generation path is deprecated.'],
+    ));
 
     $command = $this->createCommand([], $logger, $themeGenerator);
     self::assertSame(0, $command->generateSubTheme('happy_theme'));
@@ -146,13 +230,58 @@ final class SubThemeCommandsTest extends UnitTestCase {
 
     $command = new SubThemeCommands(
       $themeExtensionList,
-      $themeGenerator ?? $this->createMock(ThemeGeneratorInterface::class),
+      $themeGenerator ?? $this->createSuccessfulGenerator(),
     );
     if ($logger !== NULL) {
       $command->setLogger($logger);
     }
 
     return $command;
+  }
+
+  /**
+   * Creates a successful capturing generator fake.
+   */
+  private function createSuccessfulGenerator(): SubThemeCommandFakeThemeGenerator {
+    return new SubThemeCommandFakeThemeGenerator(new ThemeGenerationResult(0, []));
+  }
+
+}
+
+/**
+ * Captures command requests and returns a configured result or exception.
+ */
+final class SubThemeCommandFakeThemeGenerator implements ThemeGeneratorInterface {
+
+  /**
+   * Captured generation request.
+   */
+  private ?ThemeGenerationRequest $request = NULL;
+
+  /**
+   * Creates the fake generator.
+   */
+  public function __construct(
+    private readonly ThemeGenerationResult|\Throwable $outcome,
+  ) {}
+
+  /**
+   * {@inheritdoc}
+   */
+  public function generate(ThemeGenerationRequest $request): ThemeGenerationResult {
+    $this->request = $request;
+    if ($this->outcome instanceof \Throwable) {
+      throw $this->outcome;
+    }
+
+    return $this->outcome;
+  }
+
+  /**
+   * Returns the captured request.
+   */
+  public function request(): ThemeGenerationRequest {
+    return $this->request ?? throw new \LogicException('No generation request was captured.');
   }
 
 }

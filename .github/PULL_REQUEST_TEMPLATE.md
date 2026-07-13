@@ -6,7 +6,7 @@
 
 ## Validation
 - [ ] `npm run lint`
-- [ ] `composer test:unit`
+- [ ] `composer test`
 - [ ] Manual Drupal verification, when applicable
 
 ## Notes

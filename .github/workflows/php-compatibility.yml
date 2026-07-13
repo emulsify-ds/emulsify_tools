@@ -50,8 +50,8 @@ jobs:
       - name: Run PHP_CodeSniffer
         run: composer lint:phpcs
 
-  unit:
-    name: PHPUnit (Drupal ${{ matrix.drupal-label }} / PHP ${{ matrix.php-version }})
+  phpunit:
+    name: PHPUnit suites (Drupal ${{ matrix.drupal-label }} / PHP ${{ matrix.php-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -88,8 +88,14 @@ jobs:
       - name: Run unit tests
         run: composer test:unit
 
-  deprecations:
-    name: Drupal deprecations (Drupal 12.x-dev / PHP 8.5)
+      - name: Run integration tests
+        run: composer test:integration
+
+      - name: Run kernel tests
+        run: composer test:kernel
+
+  analysis:
+    name: PHPStan level 8 (Drupal 12.x-dev / PHP 8.5)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -110,5 +116,5 @@ jobs:
       - name: Resolve and install Drupal 12 dependencies
         run: composer update --with-all-dependencies --prefer-dist --no-interaction
 
-      - name: Run deprecation analysis
-        run: composer test:deprecations
+      - name: Run static analysis
+        run: composer analyse

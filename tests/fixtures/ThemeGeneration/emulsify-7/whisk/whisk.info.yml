@@ -1,0 +1,13 @@
+# phpcs:ignoreFile -- Standalone fixture requires a stable, un-packaged version.
+name: Whisk Starter
+type: theme
+base theme: emulsify
+core_version_requirement: '^11.3 || ^12'
+description: Generation-only starter source for Emulsify child themes.
+package: Emulsify
+version: 1.0.0
+hidden: true
+dependencies:
+  - 'drupal:emulsify_tools (^2.0)'
+libraries:
+  - whisk/global

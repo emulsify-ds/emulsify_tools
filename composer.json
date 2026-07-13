@@ -34,8 +34,12 @@
     ],
     "lint:phpcs": "phpcs -q",
     "lint:phpcbf": "phpcbf",
-    "test:unit": "phpunit --configuration phpunit.xml.dist",
-    "test:deprecations": "phpstan analyse --configuration phpstan.neon.dist --no-progress --memory-limit=1G --debug"
+    "test": "phpunit --configuration phpunit.xml.dist",
+    "test:unit": "phpunit --configuration phpunit.xml.dist --testsuite unit",
+    "test:integration": "phpunit --configuration phpunit.xml.dist --testsuite integration",
+    "test:kernel": "phpunit --configuration phpunit.xml.dist --testsuite kernel",
+    "analyse": "phpstan analyse --configuration phpstan.neon.dist --no-progress --memory-limit=1G --debug",
+    "test:deprecations": "@analyse"
   },
   "config": {
     "allow-plugins": {

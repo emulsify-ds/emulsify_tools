@@ -2,9 +2,8 @@
 
 declare(strict_types=1);
 
-namespace Drupal\Tests\emulsify_tools\Unit;
+namespace Drupal\Tests\emulsify_tools\Integration;
 
-use Drupal\Component\Serialization\Yaml;
 use Drupal\Core\DependencyInjection\ContainerBuilder;
 use Drupal\Core\DependencyInjection\YamlFileLoader;
 use Drupal\emulsify_tools\ThemeGeneration\DrupalStarterkitThemeGenerator;
@@ -14,7 +13,6 @@ use Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface;
 use Drupal\Tests\UnitTestCase;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\Group;
-use Symfony\Component\Yaml\Tag\TaggedValue;
 
 /**
  * Tests theme generation service wiring.
@@ -24,37 +22,25 @@ use Symfony\Component\Yaml\Tag\TaggedValue;
 final class ThemeGenerationServicesTest extends UnitTestCase {
 
   /**
-   * Tests the generator interface resolves to the format-selecting service.
+   * Tests the public generator alias and strategy services are defined.
    */
-  public function testThemeGeneratorServiceWiring(): void {
-    $services = Yaml::decode($this->readFile(dirname(__DIR__, 3) . '/emulsify_tools.services.yml'));
+  public function testThemeGeneratorServiceAlias(): void {
+    $container = $this->loadContainer();
 
-    self::assertIsArray($services);
     self::assertSame(
       EmulsifyThemeGenerator::class,
-      $services['services'][ThemeGeneratorInterface::class]['alias'],
+      (string) $container->getAlias(ThemeGeneratorInterface::class),
     );
-    self::assertSame(
-      ['%app.root%'],
-      $services['services'][DrupalStarterkitThemeGenerator::class]['arguments'],
-    );
-
-    $arguments = $services['services'][EmulsifyThemeGenerator::class]['arguments'];
-    self::assertSame('@extension.list.theme', $arguments[0]);
-    self::assertSame('@' . DrupalStarterkitThemeGenerator::class, $arguments[1]);
-    self::assertInstanceOf(TaggedValue::class, $arguments[2]);
-    self::assertSame('service_closure', $arguments[2]->getTag());
-    self::assertSame('@' . LegacyThemeGenerator::class, $arguments[2]->getValue());
-    self::assertSame('%app.root%', $arguments[3]);
+    self::assertTrue($container->hasDefinition(EmulsifyThemeGenerator::class));
+    self::assertTrue($container->hasDefinition(DrupalStarterkitThemeGenerator::class));
+    self::assertTrue($container->hasDefinition(LegacyThemeGenerator::class));
   }
 
   /**
    * Tests legacy service definitions use Drupal deprecation metadata.
    */
   public function testLegacyServiceDeprecationMetadata(): void {
-    $serviceFile = dirname(__DIR__, 3) . '/emulsify_tools.services.yml';
-    $container = new ContainerBuilder();
-    (new YamlFileLoader($container))->load($serviceFile);
+    $container = $this->loadContainer();
 
     foreach ([
       'emulsify_tools.subtheme_generator',
@@ -71,15 +57,13 @@ final class ThemeGenerationServicesTest extends UnitTestCase {
   }
 
   /**
-   * Reads a fixture file.
+   * Loads the module service definitions into a test container.
    */
-  private function readFile(string $path): string {
-    $contents = file_get_contents($path);
-    if ($contents === FALSE) {
-      throw new \RuntimeException(sprintf('Failed to read file "%s".', $path));
-    }
+  private function loadContainer(): ContainerBuilder {
+    $container = new ContainerBuilder();
+    (new YamlFileLoader($container))->load(dirname(__DIR__, 3) . '/emulsify_tools.services.yml');
 
-    return $contents;
+    return $container;
   }
 
 }

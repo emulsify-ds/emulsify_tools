@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Drupal\Tests\emulsify_tools\Unit;
+namespace Drupal\Tests\emulsify_tools\Integration;
 
 use Drupal\Component\Serialization\Yaml;
 use Drupal\Core\Extension\Extension;

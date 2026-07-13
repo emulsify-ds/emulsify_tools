@@ -1,0 +1,11 @@
+{
+  "project": {
+    "platform": "drupal",
+    "name": "whisk",
+    "machineName": "whisk",
+    "singleDirectoryComponents": true
+  },
+  "starter": {
+    "repository": "https://github.com/emulsify-ds/emulsify-drupal.git"
+  }
+}

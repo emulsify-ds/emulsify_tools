@@ -351,7 +351,8 @@ changes after running the command.
 ### Validation
 
 - `npm run lint`
-- `composer test:unit`
+- `composer test`
+- `composer analyse`
 - `bash -n .github/scripts/generation-smoke.sh`
 - `shellcheck .github/scripts/generation-smoke.sh`
 - `bash .github/scripts/favicon-command-smoke.sh /path/to/drupal-site [theme_name]`

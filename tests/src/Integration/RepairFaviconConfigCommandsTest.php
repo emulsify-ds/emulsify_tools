@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Drupal\Tests\emulsify_tools\Unit;
+namespace Drupal\Tests\emulsify_tools\Integration;
 
 use Drupal\Core\Extension\ThemeExtensionList;
 use Drupal\emulsify_tools\Drush\Commands\RepairFaviconConfigCommands;

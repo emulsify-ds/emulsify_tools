@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Drupal\Tests\emulsify_tools\Unit\ThemeGeneration;
+namespace Drupal\Tests\emulsify_tools\Integration\ThemeGeneration;
 
 use Drupal\Core\Extension\ThemeExtensionList;
 use Drupal\emulsify_tools\ThemeGeneration\EmulsifyThemeGenerator;

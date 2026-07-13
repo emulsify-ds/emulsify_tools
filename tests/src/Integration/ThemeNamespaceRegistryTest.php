@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Drupal\Tests\emulsify_tools\Unit;
+namespace Drupal\Tests\emulsify_tools\Integration;
 
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Cache\CacheBackendInterface;
@@ -158,7 +158,7 @@ final class ThemeNamespaceRegistryTest extends UnitTestCase {
    *
    * @param \Drupal\Core\Extension\Extension $theme
    *   Theme extension fixture.
-   * @param \Drupal\Tests\emulsify_tools\Unit\RecordingNamespaceCacheBackend $cacheBackend
+   * @param \Drupal\Tests\emulsify_tools\Integration\RecordingNamespaceCacheBackend $cacheBackend
    *   Recording cache backend.
    * @param array<string, mixed> $twigConfig
    *   Twig configuration parameters.
@@ -267,7 +267,7 @@ final class ThemeNamespaceRegistryTest extends UnitTestCase {
 }
 
 /**
- * Recording cache backend for namespace registry unit tests.
+ * Recording cache backend for namespace registry integration tests.
  */
 final class RecordingNamespaceCacheBackend implements CacheBackendInterface {
 
