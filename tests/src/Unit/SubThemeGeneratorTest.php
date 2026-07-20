@@ -61,7 +61,7 @@ final class SubThemeGeneratorTest extends UnitTestCase {
 
     $this->writeFile(
       $themeDirectory . '/whisk.info.yml',
-      "name: EMULSIFY_NAME\nhidden: true\n",
+      "name: EMULSIFY_NAME\nversion: '7.1.1'\nhidden: true\n",
     );
     $this->writeFile(
       $themeDirectory . '/whisk.info.emulsify.yml',
@@ -91,7 +91,10 @@ final class SubThemeGeneratorTest extends UnitTestCase {
     self::assertFileDoesNotExist($themeDirectory . '/whisk.starterkit.yml');
     self::assertFileDoesNotExist($themeDirectory . '/project.emulsify.json');
     self::assertFileExists($themeDirectory . '/new_theme.info.yml');
-    self::assertSame("name: New Theme\n", $this->readFile($themeDirectory . '/new_theme.info.yml'));
+    self::assertSame(
+      "name: New Theme\nversion: '1.0.0'\n",
+      $this->readFile($themeDirectory . '/new_theme.info.yml'),
+    );
 
     self::assertDirectoryDoesNotExist($themeDirectory . '/components/whisk-parent');
     self::assertDirectoryExists($themeDirectory . '/components/new_theme-parent/new_theme-child');

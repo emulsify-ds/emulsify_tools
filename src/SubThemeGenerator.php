@@ -48,7 +48,7 @@ final class SubThemeGenerator {
       $this->renameFiles($directory, $originalMachineName, $machineName);
     }
 
-    $this->removeGeneratedThemeHiddenFlag($directory, $machineName);
+    $this->updateGeneratedThemeInfo($directory, $machineName);
   }
 
   /**
@@ -148,23 +148,34 @@ final class SubThemeGenerator {
   }
 
   /**
-   * Makes the generated theme visible without exposing the source starterkit.
+   * Applies generated-only visibility and version metadata.
    */
-  private function removeGeneratedThemeHiddenFlag(string $directory, string $machineName): void {
+  private function updateGeneratedThemeInfo(string $directory, string $machineName): void {
     $fileName = "{$directory}/{$machineName}.info.yml";
     $content = preg_replace(
       '/^hidden:[ \t]*true[ \t]*(?:\R|$)/m',
       '',
       $this->fileGetContents($fileName),
-      -1,
-      $count,
     );
     if ($content === NULL) {
       throw new \RuntimeException(sprintf("Could not update file '%s'.", $fileName));
     }
-    if ($count > 0) {
-      $this->filesystem->dumpFile($fileName, $content);
+
+    $content = preg_replace(
+      '/^version:[^\r\n]*(?:\R|$)/m',
+      "version: '1.0.0'\n",
+      $content,
+      -1,
+      $versionCount,
+    );
+    if ($content === NULL) {
+      throw new \RuntimeException(sprintf("Could not update file '%s'.", $fileName));
     }
+    if ($versionCount === 0) {
+      $content = rtrim($content, "\r\n") . "\nversion: '1.0.0'\n";
+    }
+
+    $this->filesystem->dumpFile($fileName, $content);
   }
 
   /**

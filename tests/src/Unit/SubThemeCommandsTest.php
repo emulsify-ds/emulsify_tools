@@ -128,7 +128,10 @@ final class SubThemeCommandsTest extends UnitTestCase {
 
     $generatedInfoFile = $this->temporaryDirectory . '/themes/custom/happy_theme/happy_theme.info.yml';
     self::assertFileExists($generatedInfoFile);
-    self::assertSame("name: Happy Theme\n", $this->readFile($generatedInfoFile));
+    self::assertSame(
+      "name: Happy Theme\nversion: '1.0.0'\n",
+      $this->readFile($generatedInfoFile),
+    );
     self::assertTrue($logger->hasNoticeContaining('Using "happy_theme"', 'Happy Theme'));
   }
 
