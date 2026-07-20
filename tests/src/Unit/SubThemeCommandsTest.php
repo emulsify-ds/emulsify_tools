@@ -172,7 +172,7 @@ final class SubThemeCommandsTest extends UnitTestCase {
   private function writeStarterRecipe(string $directory): void {
     $this->filesystem->mkdir($directory);
     $this->writeFile($directory . '/whisk.info.emulsify.yml', "hidden: false\n");
-    $this->writeFile($directory . '/whisk.info.yml', "name: EMULSIFY_NAME\n");
+    $this->writeFile($directory . '/whisk.info.yml', "name: EMULSIFY_NAME\nhidden: true\n");
   }
 
   /**

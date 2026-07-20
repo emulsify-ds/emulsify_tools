@@ -61,7 +61,7 @@ final class SubThemeGeneratorTest extends UnitTestCase {
 
     $this->writeFile(
       $themeDirectory . '/whisk.info.yml',
-      "name: EMULSIFY_NAME\n",
+      "name: EMULSIFY_NAME\nhidden: true\n",
     );
     $this->writeFile(
       $themeDirectory . '/whisk.info.emulsify.yml',

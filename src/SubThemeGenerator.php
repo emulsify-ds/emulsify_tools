@@ -47,6 +47,8 @@ final class SubThemeGenerator {
       $this->renameDirectories($directory, $originalMachineName, $machineName);
       $this->renameFiles($directory, $originalMachineName, $machineName);
     }
+
+    $this->removeGeneratedThemeHiddenFlag($directory, $machineName);
   }
 
   /**
@@ -143,6 +145,26 @@ final class SubThemeGenerator {
       $fileName,
       strtr($this->fileGetContents($fileName), $replacementPairs),
     );
+  }
+
+  /**
+   * Makes the generated theme visible without exposing the source starterkit.
+   */
+  private function removeGeneratedThemeHiddenFlag(string $directory, string $machineName): void {
+    $fileName = "{$directory}/{$machineName}.info.yml";
+    $content = preg_replace(
+      '/^hidden:[ \t]*true[ \t]*(?:\R|$)/m',
+      '',
+      $this->fileGetContents($fileName),
+      -1,
+      $count,
+    );
+    if ($content === NULL) {
+      throw new \RuntimeException(sprintf("Could not update file '%s'.", $fileName));
+    }
+    if ($count > 0) {
+      $this->filesystem->dumpFile($fileName, $content);
+    }
   }
 
   /**
