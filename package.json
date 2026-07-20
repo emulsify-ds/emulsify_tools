@@ -1,6 +1,6 @@
 {
   "name": "emulsify_tools",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Toolset of useful Twig extensions, theme namespaces, and child theme generation for Emulsify",
   "engines": {
     "node": ">=20.11"

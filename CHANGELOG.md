@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.1.2](https://github.com/emulsify-ds/emulsify_tools/compare/2.1.1...2.1.2) (2026-07-20)
+
+
+### Bug Fixes
+
+* expose generated child themes ([497477c](https://github.com/emulsify-ds/emulsify_tools/commit/497477cb0ee293663ca12ac9425ae8efbc743b09))
+* set generated theme version ([6dcb5d8](https://github.com/emulsify-ds/emulsify_tools/commit/6dcb5d81ea74b7cc55602df69f4c28196df1ddd8))
+
 ## [2.1.1](https://github.com/emulsify-ds/emulsify_tools/compare/2.1.0...2.1.1) (2026-07-03)
 
 
