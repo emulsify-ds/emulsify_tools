@@ -128,7 +128,10 @@ final class SubThemeCommandsTest extends UnitTestCase {
 
     $generatedInfoFile = $this->temporaryDirectory . '/themes/custom/happy_theme/happy_theme.info.yml';
     self::assertFileExists($generatedInfoFile);
-    self::assertSame("name: Happy Theme\n", $this->readFile($generatedInfoFile));
+    self::assertSame(
+      "name: Happy Theme\nversion: '1.0.0'\n",
+      $this->readFile($generatedInfoFile),
+    );
     self::assertTrue($logger->hasNoticeContaining('Using "happy_theme"', 'Happy Theme'));
   }
 
@@ -172,7 +175,7 @@ final class SubThemeCommandsTest extends UnitTestCase {
   private function writeStarterRecipe(string $directory): void {
     $this->filesystem->mkdir($directory);
     $this->writeFile($directory . '/whisk.info.emulsify.yml', "hidden: false\n");
-    $this->writeFile($directory . '/whisk.info.yml', "name: EMULSIFY_NAME\n");
+    $this->writeFile($directory . '/whisk.info.yml', "name: EMULSIFY_NAME\nhidden: true\n");
   }
 
   /**
