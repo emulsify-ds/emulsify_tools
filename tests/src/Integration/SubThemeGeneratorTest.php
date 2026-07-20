@@ -74,6 +74,8 @@ final class SubThemeGeneratorTest extends UnitTestCase {
     self::assertIsArray($info);
     self::assertSame($displayName, $info['name']);
     self::assertSame($description, $info['description']);
+    self::assertSame('1.0.0', $info['version']);
+    self::assertFalse($info['hidden']);
     self::assertSame([
       'drupal:components (^3.0)',
       'drupal:emulsify_tools (^2.0)',
@@ -116,7 +118,10 @@ final class SubThemeGeneratorTest extends UnitTestCase {
   public function testGenerateRemovesModernStarterkitMetadata(): void {
     $themeDirectory = $this->temporaryDirectory . '/modern-source';
     $this->filesystem->mkdir($themeDirectory);
-    $this->filesystem->dumpFile($themeDirectory . '/whisk.info.yml', "name: EMULSIFY_NAME\ntype: theme\n");
+    $this->filesystem->dumpFile(
+      $themeDirectory . '/whisk.info.yml',
+      "name: EMULSIFY_NAME\ntype: theme\nversion: '7.1.1'\nhidden: true\n",
+    );
     $this->filesystem->dumpFile($themeDirectory . '/whisk.info.emulsify.yml', "name: whisk\ntype: theme\n");
     $this->filesystem->dumpFile($themeDirectory . '/whisk.starterkit.yml', "info: {}\n");
     $this->filesystem->dumpFile($themeDirectory . '/project.emulsify.json', "{}\n");
@@ -131,6 +136,8 @@ final class SubThemeGeneratorTest extends UnitTestCase {
     $info = Yaml::decode($this->readFile($themeDirectory . '/child.info.yml'));
     self::assertIsArray($info);
     self::assertSame('Child Theme', $info['name']);
+    self::assertSame('1.0.0', $info['version']);
+    self::assertArrayNotHasKey('hidden', $info);
   }
 
   /**
