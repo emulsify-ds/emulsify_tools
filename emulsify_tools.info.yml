@@ -1,5 +1,5 @@
 name: Emulsify Tools
 type: module
-description: Toolset of Twig extensions, theme Twig namespaces, child theme generation, and favicon deployment commands.
+description: Provides Twig extensions, theme Twig namespaces, child-theme generation, and favicon deployment commands for Emulsify.
 core_version_requirement: ^11.3 || ^12
 package: Emulsify

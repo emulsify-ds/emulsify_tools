@@ -4,17 +4,13 @@ declare(strict_types=1);
 
 namespace Drupal\emulsify_tools\Drush\Commands;
 
-use Drupal\Component\Utility\UrlHelper;
-use Drupal\Core\Extension\ThemeExtensionList;
-use Drupal\emulsify_tools\Archive\StarterRecipeArchiveExtractor;
-use Drupal\emulsify_tools\Favicon\ChildThemeFaviconConfigRepairer;
-use Drupal\emulsify_tools\SubThemeGenerator;
+use Drupal\emulsify_tools\ThemeGeneration\ThemeGenerationRequest;
+use Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface;
+use Drupal\emulsify_tools\ThemeGeneration\ThemeMachineName;
+use Drupal\emulsify_tools\ThemeGeneration\ThemeMachineNameFactory;
 use Drush\Attributes as CLI;
 use Drush\Commands\AutowireTrait;
 use Drush\Commands\DrushCommands;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
-use Symfony\Component\Filesystem\Filesystem;
-use Symfony\Component\Finder\Finder;
 
 /**
  * Provides Drush commands for Emulsify tools.
@@ -24,396 +20,84 @@ final class SubThemeCommands extends DrushCommands {
   use AutowireTrait;
 
   /**
-   * The Emulsify base theme machine name.
-   */
-  private const EMULSIFY_THEME = 'emulsify';
-
-  /**
    * Creates the command.
    */
   public function __construct(
-    private readonly ThemeExtensionList $themeExtensionList,
-    private readonly StarterRecipeArchiveExtractor $starterRecipeArchiveExtractor,
-    #[Autowire(service: 'emulsify_tools.subtheme_generator')]
-    private readonly SubThemeGenerator $subThemeGenerator,
-    private readonly Filesystem $filesystem,
-    private readonly ChildThemeFaviconConfigRepairer $childThemeFaviconConfigRepairer,
+    private readonly ThemeMachineNameFactory $themeMachineNameFactory,
+    private readonly ThemeGeneratorInterface $themeGenerator,
   ) {
     parent::__construct();
   }
 
   /**
    * Creates an Emulsify child theme.
+   *
+   * @param string $name
+   *   Positional machine name or label used to derive the machine name.
+   * @param array{name?: string|null, description?: string|null} $options
+   *   Display-name and description options for the generated theme.
+   *
+   * @return int
+   *   The selected theme generator exit code.
    */
-  #[CLI\Command(name: 'emulsify_tools:bake', aliases: ['emulsify'])]
-  #[CLI\Argument(name: 'name', description: 'The name of your Emulsify-based child theme.')]
-  #[CLI\Usage(name: 'emulsify_tools:bake MyThemeName')]
-  public function generateSubTheme(string $name): int {
-    $machineName = $this->convertLabelToMachineName($name);
-    $this->logResolvedMachineName($name, $machineName);
+  #[CLI\Command(name: 'emulsify_tools:bake', aliases: ['emulsify', 'emulsify_tools:generate-theme'])]
+  #[CLI\Help(
+    description: 'Generate an Emulsify child theme.',
+    synopsis: 'Pass a machine name or label as the positional value; use --name to set the human-readable display name.',
+  )]
+  #[CLI\Argument(name: 'name', description: 'Positional machine name or label used to derive the Drupal theme machine name.')]
+  #[CLI\Option(name: 'name', description: 'Human-readable display name for the generated theme. Defaults to the positional value.')]
+  #[CLI\Option(name: 'description', description: 'A description of the generated theme.')]
+  #[CLI\Usage(name: 'emulsify_tools:bake my_theme --name="My Theme" --description="Project theme"')]
+  #[CLI\Usage(name: 'emulsify_tools:generate-theme "My Theme"')]
+  public function generateSubTheme(
+    string $name,
+    array $options = ['name' => NULL, 'description' => ''],
+  ): int {
+    $resolvedName = $this->themeMachineNameFactory->create($name);
+    $this->logResolvedMachineName($resolvedName);
 
-    $sourceDirectory = $this->getStarterRecipeDirectory();
-    $destinationDirectory = "themes/custom/{$machineName}";
-    $state = ['srcDir' => $sourceDirectory];
-    $temporaryDirectory = NULL;
+    $themeName = is_string($options['name'] ?? NULL)
+      ? $options['name']
+      : $name;
+    $description = is_string($options['description'] ?? NULL)
+      ? $options['description']
+      : '';
 
-    // The current Emulsify 7.x flow reads from the local whisk starter source,
-    // but the pipeline still supports archive URLs so alternate starter sources
-    // can reuse the same copy/extract/customize steps.
-    try {
-      if (UrlHelper::isValid($sourceDirectory, TRUE)) {
-        $temporaryDirectory = $this->createTemporaryDirectory();
-        $state['path'] = $temporaryDirectory;
-
-        if ($this->downloadStarterRecipe($state, $sourceDirectory) !== 0) {
-          return 1;
-        }
-        if ($this->extractStarterRecipe($state) !== 0) {
-          return 1;
-        }
-      }
-
-      if ($this->copyStarterRecipe($state, $destinationDirectory) !== 0) {
-        return 1;
-      }
-
-      return $this->customizeStarterRecipe($name, $machineName, $destinationDirectory);
-    }
-    finally {
-      if ($temporaryDirectory !== NULL && $this->filesystem->exists($temporaryDirectory)) {
-        $this->filesystem->remove($temporaryDirectory);
-      }
-    }
-  }
-
-  /**
-   * Repairs child theme favicon install and schema files for Emulsify 7.x.
-   */
-  #[CLI\Command(name: 'emulsify_tools:repair-favicon-config')]
-  #[CLI\Argument(name: 'theme', description: 'Optional Emulsify-based child theme machine name.')]
-  #[CLI\Usage(name: 'emulsify_tools:repair-favicon-config')]
-  #[CLI\Usage(name: 'emulsify_tools:repair-favicon-config my_child_theme')]
-  public function repairFaviconConfig(?string $theme = NULL): int {
-    try {
-      $result = $this->childThemeFaviconConfigRepairer->repair($theme);
-    }
-    catch (\InvalidArgumentException $exception) {
-      $this->logger()->error($exception->getMessage());
-      return 1;
-    }
-    catch (\Throwable $exception) {
-      $this->logger()->error($exception->getMessage());
-      return 1;
-    }
-
-    foreach ($result['updated_themes'] as $themeName => $themeResult) {
-      $this->logger()->notice(sprintf(
-        'Updated %s (%s): install=%s, schema=%s.',
-        $themeName,
-        $themeResult['path'],
-        $themeResult['install'],
-        $themeResult['schema'],
-      ));
-    }
-
-    foreach ($result['errors'] as $themeName => $message) {
-      $this->logger()->error(sprintf('Unable to repair %s: %s', $themeName, $message));
-    }
-
-    if ($result['updated_count'] === 0 && $result['errors'] === []) {
-      $this->logger()->notice('No Emulsify child theme favicon source files needed repair.');
-    }
-
-    $this->logger()->notice(sprintf(
-      'Inspected %d Emulsify-based child themes: %d updated, %d unchanged, %d errors.',
-      $result['inspected_count'],
-      $result['updated_count'],
-      $result['unchanged_count'],
-      count($result['errors']),
+    $result = $this->themeGenerator->generate(new ThemeGenerationRequest(
+      $resolvedName->machineName,
+      $themeName,
+      $description,
+      'whisk',
+      'themes/custom',
     ));
 
-    return $result['errors'] === [] ? 0 : 1;
-  }
-
-  /**
-   * Convert label to machine name.
-   *
-   * @param string $label
-   *   The label.
-   *
-   * @return string
-   *   The machine name.
-   */
-  private function convertLabelToMachineName(string $label): string {
-    $machineName = preg_replace('/[^a-z0-9_]+/ui', '_', $label);
-    if ($machineName === NULL) {
-      throw new \RuntimeException(sprintf('Unable to convert "%s" to a machine name.', $label));
+    foreach ($result->warnings as $warning) {
+      $this->logger()->warning($warning);
     }
 
-    $machineName = trim(mb_strtolower($machineName), '_');
-    if ($machineName === '') {
-      throw new \InvalidArgumentException('Theme name must contain at least one alphanumeric character.');
+    foreach ($result->messages as $message) {
+      $result->exitCode === 0
+        ? $this->logger()->notice($message)
+        : $this->logger()->error($message);
     }
 
-    $this->validateMachineName($machineName, $label);
-
-    return $machineName;
-  }
-
-  /**
-   * Validates a Drupal theme machine name.
-   *
-   * @throws \InvalidArgumentException
-   *   Thrown when the machine name cannot be used for a child theme.
-   */
-  private function validateMachineName(string $machineName, string $label): void {
-    if (preg_match('/^[a-z]/', $machineName) !== 1) {
-      throw new \InvalidArgumentException(sprintf(
-        'Theme machine name "%s" derived from "%s" must start with a lowercase letter. Start the theme name with a letter, for example "my_theme".',
-        $machineName,
-        $label,
-      ));
-    }
-
-    if (strlen($machineName) > \DRUPAL_EXTENSION_NAME_MAX_LENGTH) {
-      throw new \InvalidArgumentException(sprintf(
-        'Theme machine name "%s" is %d characters long, but Drupal theme machine names must be %d characters or fewer. Choose a shorter name.',
-        $machineName,
-        strlen($machineName),
-        \DRUPAL_EXTENSION_NAME_MAX_LENGTH,
-      ));
-    }
-
-    if ($machineName === self::EMULSIFY_THEME) {
-      throw new \InvalidArgumentException('Theme machine name "emulsify" is reserved by the Emulsify base theme. Choose a unique child theme name.');
-    }
-
-    if (isset($this->themeExtensionList->getList()[$machineName])) {
-      throw new \InvalidArgumentException(sprintf(
-        'Theme machine name "%s" is already used by an existing Drupal theme. Choose a unique child theme name.',
-        $machineName,
-      ));
-    }
+    return $result->exitCode;
   }
 
   /**
    * Logs when a human-readable label resolves to a different machine name.
    */
-  private function logResolvedMachineName(string $name, string $machineName): void {
-    if ($machineName === trim($name)) {
+  private function logResolvedMachineName(ThemeMachineName $resolvedName): void {
+    if (!$resolvedName->wasNormalized()) {
       return;
     }
 
     $this->logger()->notice(sprintf(
       'Using "%s" as the Drupal theme machine name for "%s".',
-      $machineName,
-      $name,
+      $resolvedName->machineName,
+      $resolvedName->originalInput,
     ));
-  }
-
-  /**
-   * Resolves the Emulsify starter recipe directory.
-   *
-   * @return string
-   *   The starter recipe directory.
-   */
-  private function getStarterRecipeDirectory(): string {
-    $emulsifyDirectory = $this->themeExtensionList->getPath('emulsify');
-    if ($emulsifyDirectory === '') {
-      throw new \RuntimeException('The Emulsify base theme could not be found.');
-    }
-
-    return $emulsifyDirectory . '/whisk';
-  }
-
-  /**
-   * Downloads a remote starter recipe archive.
-   *
-   * @param array<string, mixed> $state
-   *   The command state bag.
-   * @param string $sourceDirectory
-   *   The remote archive URL.
-   *
-   * @return int
-   *   Zero on success, non-zero on failure.
-   */
-  private function downloadStarterRecipe(array &$state, string $sourceDirectory): int {
-    $this->logger()->debug(
-      'download Emulsify recipe from <info>{recipeUrl}</info>',
-      ['recipeUrl' => $sourceDirectory],
-    );
-
-    $fileName = $this->getFileNameFromUrl($sourceDirectory);
-    $packageDirectory = "{$state['path']}/pack";
-    $state['packPath'] = "{$packageDirectory}/{$fileName}";
-
-    try {
-      $this->filesystem->mkdir($packageDirectory);
-      $this->filesystem->copy($sourceDirectory, $state['packPath']);
-    }
-    catch (\Exception $exception) {
-      $this->logger()->error($exception->getMessage());
-      return 1;
-    }
-
-    return 0;
-  }
-
-  /**
-   * Extracts a downloaded starter recipe archive.
-   *
-   * @param array<string, mixed> $state
-   *   The command state bag.
-   *
-   * @return int
-   *   Zero on success, non-zero on failure.
-   */
-  private function extractStarterRecipe(array &$state): int {
-    $this->logger()->debug(
-      'extract downloaded Emulsify starter recipe from <info>{packPath}</info> to <info>{srcDir}</info>',
-      [
-        'packPath' => $state['packPath'],
-        'srcDir' => "{$state['path']}/recipe",
-      ],
-    );
-
-    $state['srcDir'] = "{$state['path']}/recipe";
-
-    try {
-      $this->starterRecipeArchiveExtractor->extract($state['packPath'], $state['srcDir']);
-    }
-    catch (\Exception $exception) {
-      $this->logger()->error($exception->getMessage());
-      return 1;
-    }
-
-    $topLevelDirectory = $this->getTopLevelDirectory($state['srcDir']);
-    if ($topLevelDirectory !== '') {
-      $state['srcDir'] = $topLevelDirectory;
-    }
-
-    return 0;
-  }
-
-  /**
-   * Copies the starter recipe into the destination theme directory.
-   *
-   * @param array<string, mixed> $state
-   *   The command state bag.
-   * @param string $destinationDirectory
-   *   The destination directory.
-   *
-   * @return int
-   *   Zero on success, non-zero on failure.
-   */
-  private function copyStarterRecipe(array $state, string $destinationDirectory): int {
-    $this->logger()->debug(
-      'copy Emulsify starter recipe from <info>{srcDir}</info> to <info>{dstDir}</info>',
-      [
-        'srcDir' => $state['srcDir'],
-        'dstDir' => $destinationDirectory,
-      ],
-    );
-
-    if ($this->filesystem->exists($destinationDirectory)) {
-      $this->logger()->error(sprintf('Destination directory "%s" already exists.', $destinationDirectory));
-      return 1;
-    }
-
-    try {
-      $this->filesystem->mirror($state['srcDir'], $destinationDirectory);
-    }
-    catch (\Exception $exception) {
-      $this->logger()->error($exception->getMessage());
-      return 1;
-    }
-
-    return 0;
-  }
-
-  /**
-   * Creates a temporary working directory for starter recipe processing.
-   */
-  private function createTemporaryDirectory(): string {
-    $temporaryDirectory = sys_get_temp_dir() . '/emulsify-tools-' . bin2hex(random_bytes(8));
-    $this->filesystem->mkdir($temporaryDirectory);
-
-    return $temporaryDirectory;
-  }
-
-  /**
-   * Applies Emulsify-specific replacements to the copied starter recipe.
-   *
-   * @param string $name
-   *   The theme label.
-   * @param string $machineName
-   *   The theme machine name.
-   * @param string $destinationDirectory
-   *   The copied destination directory.
-   *
-   * @return int
-   *   Zero on success.
-   */
-  private function customizeStarterRecipe(string $name, string $machineName, string $destinationDirectory): int {
-    $this->logger()->debug(
-      'customize Emulsify starter recipe in <info>{dstDir}</info> directory',
-      ['dstDir' => $destinationDirectory],
-    );
-
-    $this->subThemeGenerator->generate($destinationDirectory, $machineName, $name);
-
-    return 0;
-  }
-
-  /**
-   * Get directory descendants.
-   *
-   * @return \Symfony\Component\Finder\Finder
-   *   The finder.
-   */
-  private function getDirectDescendants(string $dir): Finder {
-    return (new Finder())
-      ->in($dir)
-      ->depth('== 0');
-  }
-
-  /**
-   * Get file name from URL.
-   *
-   * @param string $url
-   *   The url.
-   *
-   * @return string
-   *   The file name.
-   */
-  private function getFileNameFromUrl(string $url): string {
-    $path = parse_url($url, PHP_URL_PATH);
-    return pathinfo(is_string($path) ? $path : '', PATHINFO_BASENAME);
-  }
-
-  /**
-   * Get the top level dir.
-   *
-   * @param string $parentDir
-   *   The parent directory.
-   *
-   * @return string
-   *   The top level directory.
-   */
-  private function getTopLevelDirectory(string $parentDir): string {
-    $directDescendants = $this->getDirectDescendants($parentDir);
-    if ($directDescendants->count() !== 1) {
-      return '';
-    }
-
-    $iterator = $directDescendants->getIterator();
-    $iterator->rewind();
-    $firstFile = $iterator->current();
-    if ($firstFile->isDir()) {
-      return $firstFile->getPathname();
-    }
-
-    return '';
   }
 
 }

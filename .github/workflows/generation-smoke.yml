@@ -1,0 +1,78 @@
+name: Generation Smoke
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "*.x"
+
+permissions:
+  contents: read
+
+jobs:
+  generation-smoke:
+    name: Real Drupal generation (Drupal ${{ matrix.drupal-label }} / PHP ${{ matrix.php-version }} / Drush ${{ matrix.drush-label }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php-version: "8.3"
+            drupal-project-version: "11.3.*"
+            drupal-label: "11.3"
+            drush-version: "^13"
+            drush-label: "13"
+          - php-version: "8.5"
+            drupal-project-version: "dev-main"
+            drupal-label: "12.x-dev"
+            drush-version: "14.x-dev@dev"
+            drush-label: "14.x-dev"
+    env:
+      COMPOSER_NO_INTERACTION: "1"
+      DRUPAL_VERSION: ${{ matrix.drupal-project-version }}
+      DRUSH_VERSION: ${{ matrix.drush-version }}
+      EMULSIFY_VERSION: "^7"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate generation script
+        run: |
+          bash -n .github/scripts/generation-smoke.sh
+          shellcheck .github/scripts/generation-smoke.sh
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: pdo_sqlite
+          coverage: none
+
+      - name: Locate Composer cache
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: generation-composer-${{ runner.os }}-php${{ matrix.php-version }}-${{ matrix.drupal-label }}-${{ hashFiles('composer.json', '.github/scripts/generation-smoke.sh') }}
+          restore-keys: |
+            generation-composer-${{ runner.os }}-php${{ matrix.php-version }}-
+            generation-composer-${{ runner.os }}-
+
+      - name: Run real Drupal generation smoke test
+        run: |
+          set -o pipefail
+          bash .github/scripts/generation-smoke.sh 2>&1 | tee "$RUNNER_TEMP/generation-smoke.log"
+
+      - name: Upload generation smoke log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generation-smoke-drupal-${{ matrix.drupal-label }}-php-${{ matrix.php-version }}
+          path: ${{ runner.temp }}/generation-smoke.log
+          if-no-files-found: warn
+          retention-days: 7

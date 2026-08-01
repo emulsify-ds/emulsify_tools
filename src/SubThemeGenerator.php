@@ -4,11 +4,17 @@ declare(strict_types=1);
 
 namespace Drupal\emulsify_tools;
 
+use Drupal\Component\Serialization\Yaml;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
 
 /**
  * Generates Emulsify child themes.
+ *
+ * @deprecated in emulsify_tools:2.2.0 and is removed from
+ *   emulsify_tools:3.0.0. Use
+ *   \Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface instead.
+ * @see https://www.drupal.org/project/drupal/issues/3364885
  */
 final class SubThemeGenerator {
 
@@ -31,8 +37,15 @@ final class SubThemeGenerator {
    *   The new machine name.
    * @param string $name
    *   The new human-readable name.
+   * @param string|null $description
+   *   The new description, or NULL to preserve the source description.
    */
-  public function generate(string $directory, string $machineName, string $name): void {
+  public function generate(
+    string $directory,
+    string $machineName,
+    string $name,
+    ?string $description = NULL,
+  ): void {
     $originalMachineName = $this->discoverOriginalMachineName($directory);
     $this->removeStarterkitOnlyFiles($directory, $originalMachineName);
 
@@ -45,9 +58,9 @@ final class SubThemeGenerator {
       // machine name still point at existing parent directories when files are
       // renamed afterward.
       $this->renameDirectories($directory, $originalMachineName, $machineName);
-      $this->renameFiles($directory, $originalMachineName, $machineName);
     }
-
+    $this->renameFiles($directory, $originalMachineName, $machineName);
+    $this->updateThemeInfo($directory, $machineName, $name, $description);
     $this->updateGeneratedThemeInfo($directory, $machineName);
   }
 
@@ -57,9 +70,11 @@ final class SubThemeGenerator {
   private function removeStarterkitOnlyFiles(string $directory, string $originalMachineName): void {
     $starterkitOnlyFiles = [
       $directory . '/project.emulsify.json',
-      $directory . '/' . $originalMachineName . '.info.emulsify.yml',
       $directory . '/' . $originalMachineName . '.starterkit.yml',
     ];
+    if ($this->filesystem->exists($directory . '/' . $originalMachineName . '.info.yml')) {
+      $starterkitOnlyFiles[] = $directory . '/' . $originalMachineName . '.info.emulsify.yml';
+    }
 
     foreach ($starterkitOnlyFiles as $fileName) {
       if ($this->filesystem->exists($fileName)) {
@@ -106,6 +121,9 @@ final class SubThemeGenerator {
       $newFileName = dirname($fileName) . '/' . str_replace($originalMachineName, $newMachineName, basename($fileName));
       if (str_contains($newFileName, '.emulsify.')) {
         $newFileName = str_replace('.emulsify.', '.', $newFileName);
+      }
+      if ($newFileName === $fileName) {
+        continue;
       }
       $this->filesystem->rename($fileName, $newFileName);
     }
@@ -247,8 +265,48 @@ final class SubThemeGenerator {
   private function getFileContentReplacementPairs(string $machineName, string $name): array {
     return [
       'EMULSIFY_NAME' => $name,
+      'drupal:emulsify_tools (^4.0)' => 'drupal:emulsify_tools (^2.0)',
+      'drupal:emulsify_tools (^1.0)' => 'drupal:emulsify_tools (^2.0)',
       'whisk' => $machineName,
     ];
+  }
+
+  /**
+   * Safely applies the requested display metadata to the generated info file.
+   */
+  private function updateThemeInfo(
+    string $directory,
+    string $machineName,
+    string $name,
+    ?string $description,
+  ): void {
+    $path = "{$directory}/{$machineName}.info.yml";
+    $contents = $this->fileGetContents($path);
+    $values = ['name' => $name];
+    if ($description !== NULL && $description !== '') {
+      $values['description'] = $description;
+    }
+
+    foreach ($values as $key => $value) {
+      $encodedValue = rtrim(Yaml::encode($value), "\r\n");
+      $replacement = "{$key}: {$encodedValue}";
+      $count = 0;
+      $contents = preg_replace_callback(
+        '/^' . preg_quote($key, '/') . ':[^\r\n]*$/m',
+        static fn (): string => $replacement,
+        $contents,
+        -1,
+        $count,
+      );
+      if ($contents === NULL) {
+        throw new \RuntimeException(sprintf('Unable to update theme metadata in "%s".', $path));
+      }
+      if ($count === 0) {
+        $contents = rtrim($contents) . "\n{$replacement}\n";
+      }
+    }
+
+    $this->filesystem->dumpFile($path, $contents);
   }
 
   /**

@@ -4,135 +4,200 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\emulsify_tools\Unit;
 
+use Drupal\Component\Transliteration\TransliterationInterface;
 use Drupal\Core\Extension\ThemeExtensionList;
-use Drupal\emulsify_tools\Archive\StarterRecipeArchiveExtractor;
 use Drupal\emulsify_tools\Drush\Commands\SubThemeCommands;
-use Drupal\emulsify_tools\Favicon\ChildThemeFaviconConfigRepairer;
-use Drupal\emulsify_tools\SubThemeGenerator;
+use Drupal\emulsify_tools\ThemeGeneration\ThemeGenerationRequest;
+use Drupal\emulsify_tools\ThemeGeneration\ThemeGenerationResult;
+use Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface;
+use Drupal\emulsify_tools\ThemeGeneration\ThemeMachineNameFactory;
 use Drupal\Tests\UnitTestCase;
+use Drush\Attributes\Argument as ArgumentAttribute;
+use Drush\Attributes\Command as CommandAttribute;
+use Drush\Attributes\Help;
+use Drush\Attributes\Option;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LogLevel;
-use Symfony\Component\Filesystem\Filesystem;
 
 /**
- * Tests child theme Drush command validation.
+ * Tests child-theme Drush command behavior.
  */
 #[CoversClass(SubThemeCommands::class)]
 #[Group('emulsify_tools')]
 final class SubThemeCommandsTest extends UnitTestCase {
 
   /**
-   * Filesystem helper.
+   * Tests command aliases and distinct positional and display-name help.
    */
-  private Filesystem $filesystem;
+  public function testCommandMetadata(): void {
+    $method = new \ReflectionMethod(SubThemeCommands::class, 'generateSubTheme');
+    $command = $method->getAttributes(CommandAttribute::class)[0]->newInstance();
+    self::assertSame('emulsify_tools:bake', $command->name);
+    self::assertSame(['emulsify', 'emulsify_tools:generate-theme'], $command->aliases);
 
-  /**
-   * Temporary fixture directory.
-   */
-  private string $temporaryDirectory;
+    $help = $method->getAttributes(Help::class)[0]->newInstance();
+    self::assertStringContainsString('positional value', (string) $help->synopsis);
+    self::assertStringContainsString('--name', (string) $help->synopsis);
 
-  /**
-   * {@inheritdoc}
-   */
-  protected function setUp(): void {
-    parent::setUp();
-
-    $this->filesystem = new Filesystem();
-    $this->temporaryDirectory = sys_get_temp_dir() . '/emulsify_tools_command_' . bin2hex(random_bytes(8));
-    $this->filesystem->mkdir($this->temporaryDirectory);
+    $argument = $method->getAttributes(ArgumentAttribute::class)[0]->newInstance();
+    self::assertStringContainsString('machine name or label', $argument->description);
+    $nameOption = array_values(array_filter(
+      array_map(
+        static fn (\ReflectionAttribute $attribute): Option => $attribute->newInstance(),
+        $method->getAttributes(Option::class),
+      ),
+      static fn (Option $option): bool => $option->name === 'name',
+    ))[0];
+    self::assertStringContainsString('Human-readable display name', $nameOption->description);
   }
 
   /**
-   * {@inheritdoc}
+   * Tests an explicit display-name option is passed to the generator.
    */
-  protected function tearDown(): void {
-    if (isset($this->temporaryDirectory) && $this->filesystem->exists($this->temporaryDirectory)) {
-      $this->filesystem->remove($this->temporaryDirectory);
-    }
-
-    parent::tearDown();
-  }
-
-  /**
-   * Tests leading-digit names are rejected.
-   */
-  public function testGenerateSubThemeRejectsLeadingDigitMachineName(): void {
-    $command = $this->createCommand();
-
-    $this->expectException(\InvalidArgumentException::class);
-    $this->expectExceptionMessage('must start with a lowercase letter');
-    $command->generateSubTheme('123 Theme');
-  }
-
-  /**
-   * Tests names over Drupal's extension-name length limit are rejected.
-   */
-  public function testGenerateSubThemeRejectsTooLongMachineName(): void {
-    $command = $this->createCommand();
-
-    $this->expectException(\InvalidArgumentException::class);
-    $this->expectExceptionMessage(sprintf(
-      'must be %d characters or fewer',
-      \DRUPAL_EXTENSION_NAME_MAX_LENGTH,
-    ));
-    $command->generateSubTheme(str_repeat('a', \DRUPAL_EXTENSION_NAME_MAX_LENGTH + 1));
-  }
-
-  /**
-   * Tests the Emulsify base theme machine name is reserved.
-   */
-  public function testGenerateSubThemeRejectsEmulsifyBaseThemeName(): void {
-    $command = $this->createCommand();
-
-    $this->expectException(\InvalidArgumentException::class);
-    $this->expectExceptionMessage('reserved by the Emulsify base theme');
-    $command->generateSubTheme('emulsify');
-  }
-
-  /**
-   * Tests names that collide with existing themes are rejected.
-   */
-  public function testGenerateSubThemeRejectsExistingThemeName(): void {
-    $command = $this->createCommand(['stark']);
-
-    $this->expectException(\InvalidArgumentException::class);
-    $this->expectExceptionMessage('already used by an existing Drupal theme');
-    $command->generateSubTheme('Stark');
-  }
-
-  /**
-   * Tests a valid label still generates a child theme.
-   */
-  public function testGenerateSubThemeAcceptsValidLabelAndLogsMachineName(): void {
-    $emulsifyPath = $this->temporaryDirectory . '/themes/contrib/emulsify';
-    $this->writeStarterRecipe($emulsifyPath . '/whisk');
-    $this->filesystem->mkdir($this->temporaryDirectory . '/themes/custom');
-
+  public function testGenerateSubThemeUsesExplicitDisplayName(): void {
+    $generator = $this->createSuccessfulGenerator();
     $logger = new SubThemeCommandRecordingLogger();
-    $command = $this->createCommand(['emulsify', 'stark'], $emulsifyPath, $logger);
+    $command = $this->createCommand(logger: $logger, themeGenerator: $generator);
 
-    $workingDirectory = getcwd();
-    if ($workingDirectory === FALSE) {
-      throw new \RuntimeException('Unable to determine the current working directory.');
-    }
+    self::assertSame(0, $command->generateSubTheme('Happy Project', [
+      'name' => 'Happy Theme',
+      'description' => 'Project theme.',
+    ]));
 
-    chdir($this->temporaryDirectory);
+    $request = $generator->request();
+    self::assertSame('happy_project', $request->machineName);
+    self::assertSame('Happy Theme', $request->displayName);
+    self::assertSame('Project theme.', $request->description);
+    self::assertSame('whisk', $request->starterkitMachineName);
+    self::assertSame('themes/custom', $request->destinationPath);
+    self::assertTrue($logger->hasRecordContaining(
+      LogLevel::NOTICE,
+      'Using "happy_project"',
+      'Happy Project',
+    ));
+  }
+
+  /**
+   * Tests the positional value is the default display name.
+   */
+  public function testGenerateSubThemeDefaultsDisplayNameToArgument(): void {
+    $generator = $this->createSuccessfulGenerator();
+    $command = $this->createCommand(themeGenerator: $generator);
+
+    self::assertSame(0, $command->generateSubTheme('Happy Project'));
+    self::assertSame('Happy Project', $generator->request()->displayName);
+  }
+
+  /**
+   * Tests explicit empty display names are forwarded without reinterpretation.
+   */
+  #[DataProvider('emptyDisplayNameProvider')]
+  public function testGenerateSubThemePreservesEmptyDisplayName(string $displayName): void {
+    $generator = $this->createSuccessfulGenerator();
+    $command = $this->createCommand(themeGenerator: $generator);
+
+    self::assertSame(0, $command->generateSubTheme('happy_theme', ['name' => $displayName]));
+    self::assertSame($displayName, $generator->request()->displayName);
+  }
+
+  /**
+   * Provides empty display-name options.
+   *
+   * @return array<string, array{string}>
+   *   Display names keyed by scenario.
+   */
+  public static function emptyDisplayNameProvider(): array {
+    return [
+      'empty' => [''],
+      'whitespace only' => [" \t "],
+    ];
+  }
+
+  /**
+   * Tests descriptions are forwarded without shell or YAML interpretation.
+   */
+  #[DataProvider('descriptionProvider')]
+  public function testGenerateSubThemePreservesDescription(string $description): void {
+    $generator = $this->createSuccessfulGenerator();
+    $command = $this->createCommand(themeGenerator: $generator);
+
+    self::assertSame(0, $command->generateSubTheme('happy_theme', ['description' => $description]));
+    self::assertSame($description, $generator->request()->description);
+  }
+
+  /**
+   * Provides descriptions with significant punctuation and whitespace.
+   *
+   * @return array<string, array{string}>
+   *   Descriptions keyed by scenario.
+   */
+  public static function descriptionProvider(): array {
+    return [
+      'quotes' => ['A "quoted" theme with an apostrophe\'s metadata.'],
+      'ampersand' => ['Research & Development'],
+      'colon' => ['Project theme: metadata'],
+      'newlines' => ["First line\nSecond line"],
+      'YAML-significant characters' => ["---\nkey: [one, two]\n# comment\n*alias\n!tag"],
+    ];
+  }
+
+  /**
+   * Tests nonzero generator results and failure-message logging.
+   */
+  public function testGenerateSubThemeReturnsNonzeroExitCodeAndLogsErrors(): void {
+    $logger = new SubThemeCommandRecordingLogger();
+    $generator = new SubThemeCommandFakeThemeGenerator(new ThemeGenerationResult(
+      7,
+      ['First generation failure.', 'Second generation failure.'],
+    ));
+    $command = $this->createCommand(logger: $logger, themeGenerator: $generator);
+
+    self::assertSame(7, $command->generateSubTheme('happy_theme'));
+    self::assertTrue($logger->hasRecordContaining(LogLevel::ERROR, 'First generation failure.'));
+    self::assertTrue($logger->hasRecordContaining(LogLevel::ERROR, 'Second generation failure.'));
+  }
+
+  /**
+   * Tests generator exceptions retain their existing propagation behavior.
+   */
+  public function testGenerateSubThemePropagatesGeneratorException(): void {
+    $exception = new \RuntimeException('Generator exploded.');
+    $generator = new SubThemeCommandFakeThemeGenerator($exception);
+    $command = $this->createCommand(themeGenerator: $generator);
+
     try {
-      self::assertSame(0, $command->generateSubTheme('Happy Theme'));
+      $command->generateSubTheme('happy_theme');
+      self::fail('Expected the generator exception to be propagated.');
     }
-    finally {
-      chdir($workingDirectory);
+    catch (\RuntimeException $caught) {
+      self::assertSame($exception, $caught);
     }
 
-    $generatedInfoFile = $this->temporaryDirectory . '/themes/custom/happy_theme/happy_theme.info.yml';
-    self::assertFileExists($generatedInfoFile);
-    self::assertSame(
-      "name: Happy Theme\nversion: '1.0.0'\n",
-      $this->readFile($generatedInfoFile),
-    );
-    self::assertTrue($logger->hasNoticeContaining('Using "happy_theme"', 'Happy Theme'));
+    self::assertSame('happy_theme', $generator->request()->machineName);
+  }
+
+  /**
+   * Tests successful generator messages are logged as notices.
+   */
+  public function testGenerateSubThemeLogsSuccessfulMessages(): void {
+    $logger = new SubThemeCommandRecordingLogger();
+    $themeGenerator = new SubThemeCommandFakeThemeGenerator(new ThemeGenerationResult(
+      0,
+      ['Theme generated successfully.'],
+      'themes/custom/happy_theme',
+      ['The legacy Emulsify Drupal 6.x generation path is deprecated.'],
+    ));
+
+    $command = $this->createCommand([], $logger, $themeGenerator);
+    self::assertSame(0, $command->generateSubTheme('happy_theme'));
+    self::assertTrue($logger->hasRecordContaining(LogLevel::NOTICE, 'Theme generated successfully.'));
+    self::assertTrue($logger->hasRecordContaining(
+      LogLevel::WARNING,
+      'legacy Emulsify Drupal 6.x generation path is deprecated',
+    ));
   }
 
   /**
@@ -140,27 +205,26 @@ final class SubThemeCommandsTest extends UnitTestCase {
    *
    * @param string[] $existingThemes
    *   Existing theme machine names.
-   * @param string|null $emulsifyPath
-   *   Drupal-root-relative or absolute Emulsify theme path.
    * @param \Drupal\Tests\emulsify_tools\Unit\SubThemeCommandRecordingLogger|null $logger
    *   Optional command logger.
+   * @param \Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface|null $themeGenerator
+   *   Optional theme generator.
    */
   private function createCommand(
     array $existingThemes = [],
-    ?string $emulsifyPath = NULL,
     ?SubThemeCommandRecordingLogger $logger = NULL,
+    ?ThemeGeneratorInterface $themeGenerator = NULL,
   ): SubThemeCommands {
     $themeExtensionList = $this->createMock(ThemeExtensionList::class);
-    $themeExtensionList->method('getList')->willReturn(array_fill_keys($existingThemes, (object) []));
-    $themeExtensionList->method('getPath')
-      ->willReturnCallback(static fn (string $themeName): string => $themeName === 'emulsify' ? (string) $emulsifyPath : '');
+    $themeExtensionList->method('exists')
+      ->willReturnCallback(static fn (string $name): bool => in_array($name, $existingThemes, TRUE));
+    $transliteration = $this->createMock(TransliterationInterface::class);
+    $transliteration->method('transliterate')
+      ->willReturnCallback(static fn (string $name): string => $name);
 
     $command = new SubThemeCommands(
-      $themeExtensionList,
-      new StarterRecipeArchiveExtractor($this->filesystem),
-      new SubThemeGenerator($this->filesystem),
-      $this->filesystem,
-      new ChildThemeFaviconConfigRepairer($this->temporaryDirectory, $themeExtensionList, $this->filesystem),
+      new ThemeMachineNameFactory($transliteration, $themeExtensionList),
+      $themeGenerator ?? $this->createSuccessfulGenerator(),
     );
     if ($logger !== NULL) {
       $command->setLogger($logger);
@@ -170,34 +234,48 @@ final class SubThemeCommandsTest extends UnitTestCase {
   }
 
   /**
-   * Writes a minimal Whisk starter recipe.
+   * Creates a successful capturing generator fake.
    */
-  private function writeStarterRecipe(string $directory): void {
-    $this->filesystem->mkdir($directory);
-    $this->writeFile($directory . '/whisk.info.emulsify.yml', "hidden: false\n");
-    $this->writeFile($directory . '/whisk.info.yml', "name: EMULSIFY_NAME\nhidden: true\n");
+  private function createSuccessfulGenerator(): SubThemeCommandFakeThemeGenerator {
+    return new SubThemeCommandFakeThemeGenerator(new ThemeGenerationResult(0, []));
+  }
+
+}
+
+/**
+ * Captures command requests and returns a configured result or exception.
+ */
+final class SubThemeCommandFakeThemeGenerator implements ThemeGeneratorInterface {
+
+  /**
+   * Captured generation request.
+   */
+  private ?ThemeGenerationRequest $request = NULL;
+
+  /**
+   * Creates the fake generator.
+   */
+  public function __construct(
+    private readonly ThemeGenerationResult|\Throwable $outcome,
+  ) {}
+
+  /**
+   * {@inheritdoc}
+   */
+  public function generate(ThemeGenerationRequest $request): ThemeGenerationResult {
+    $this->request = $request;
+    if ($this->outcome instanceof \Throwable) {
+      throw $this->outcome;
+    }
+
+    return $this->outcome;
   }
 
   /**
-   * Writes a test fixture file.
+   * Returns the captured request.
    */
-  private function writeFile(string $path, string $contents): void {
-    $result = file_put_contents($path, $contents);
-    if ($result === FALSE) {
-      throw new \RuntimeException(sprintf('Failed to write fixture file "%s".', $path));
-    }
-  }
-
-  /**
-   * Reads a generated file.
-   */
-  private function readFile(string $path): string {
-    $contents = file_get_contents($path);
-    if ($contents === FALSE) {
-      throw new \RuntimeException(sprintf('Failed to read fixture file "%s".', $path));
-    }
-
-    return $contents;
+  public function request(): ThemeGenerationRequest {
+    return $this->request ?? throw new \LogicException('No generation request was captured.');
   }
 
 }
@@ -229,11 +307,11 @@ final class SubThemeCommandRecordingLogger extends AbstractLogger {
   }
 
   /**
-   * Returns whether a notice contains all provided fragments.
+   * Returns whether a record at the requested level contains all fragments.
    */
-  public function hasNoticeContaining(string ...$fragments): bool {
+  public function hasRecordContaining(string $level, string ...$fragments): bool {
     foreach ($this->records as $record) {
-      if ($record['level'] !== LogLevel::NOTICE) {
+      if ($record['level'] !== $level) {
         continue;
       }
       foreach ($fragments as $fragment) {

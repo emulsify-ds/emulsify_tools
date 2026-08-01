@@ -37,9 +37,31 @@ services:
   emulsify_tools.subtheme_generator:
     class: Drupal\emulsify_tools\SubThemeGenerator
     arguments: ['@emulsify_tools.filesystem']
+    deprecated: 'The "%service_id%" service is deprecated in emulsify_tools:2.2.0 and is removed from emulsify_tools:3.0.0. Use Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface instead.'
+  Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface:
+    alias: Drupal\emulsify_tools\ThemeGeneration\EmulsifyThemeGenerator
+  Drupal\emulsify_tools\ThemeGeneration\ThemeMachineNameFactory:
+    arguments: ['@transliteration', '@extension.list.theme']
+  Drupal\emulsify_tools\ThemeGeneration\EmulsifyThemeGenerator:
+    arguments:
+      - '@extension.list.theme'
+      - '@Drupal\emulsify_tools\ThemeGeneration\DrupalStarterkitThemeGenerator'
+      - !service_closure '@Drupal\emulsify_tools\ThemeGeneration\LegacyThemeGenerator'
+      - '%app.root%'
+  Drupal\emulsify_tools\ThemeGeneration\DrupalStarterkitThemeGenerator:
+    arguments: ['%app.root%']
+  Drupal\emulsify_tools\ThemeGeneration\LegacyThemeGenerator:
+    arguments:
+      - '@extension.list.theme'
+      - '@Drupal\emulsify_tools\Archive\StarterRecipeArchiveExtractor'
+      - '@emulsify_tools.subtheme_generator'
+      - '@emulsify_tools.filesystem'
+      - '%app.root%'
+    deprecated: 'The "%service_id%" service is deprecated in emulsify_tools:2.2.0 and is removed from emulsify_tools:3.0.0. Use Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface instead.'
   Drupal\emulsify_tools\Archive\StarterRecipeArchiveExtractor:
     class: Drupal\emulsify_tools\Archive\StarterRecipeArchiveExtractor
     autowire: true
+    deprecated: 'The "%service_id%" service is deprecated in emulsify_tools:2.2.0 and is removed from emulsify_tools:3.0.0. Use Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface instead.'
   Drupal\emulsify_tools\Favicon\FaviconSourceSanitizerInterface:
     alias: emulsify_tools.favicon_source_sanitizer
   emulsify_tools.favicon_source_sanitizer:

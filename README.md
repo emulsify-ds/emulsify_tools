@@ -1,46 +1,138 @@
 # Emulsify Tools module
 
-This module provides Emulsify Twig extensions, theme-defined Twig namespaces, child theme generation Drush commands, and deployment commands for Emulsify Drupal favicon packages.
+Provides Twig extensions, theme Twig namespaces, child-theme generation, and
+favicon deployment commands for Emulsify.
 
 ## Compatibility
 
-This module targets Drupal `11.3+`, includes Drupal 12 forward compatibility,
-and supports PHP `8.3+` for Drupal 11 sites. Drupal 12 compatibility follows
-Drupal core's PHP requirements and is tested on PHP `8.5`.
+This module requires Drupal `^11.3 || ^12` and PHP `^8.3`. Drupal 12
+compatibility follows Drupal core's PHP requirements and is tested on PHP
+`8.5`.
 
 The bundled Drush commands follow the Drush 13+ autowiring pattern, and the
 codebase avoids syntax newer than PHP 8.3 so Drupal 11 sites can keep using
 their supported PHP 8.3 runtimes.
 
-### Companion theme pairing
+### Emulsify Tools 2.2 compatibility
 
-- `emulsify_tools` `^2.0` is intended to pair with Emulsify Drupal `^7.0`.
-- The Twig helpers and child theme generator remain broadly useful on their own,
-  but the favicon migration and admin-theme favicon features expect the
-  Emulsify 7.x companion theme APIs to be present.
-- In short: child theme generation remains available for Emulsify Drupal 6.x
-  projects, while generated favicon deployment and repair are the Emulsify
-  Drupal 7.x companion workflows in this 2.x line.
+| Emulsify Tools | Emulsify Drupal            | Drupal core      | PHP    | Drush | Child-theme generation backend                                               |
+| -------------- | -------------------------- | ---------------- | ------ | ----- | ---------------------------------------------------------------------------- |
+| `2.2.x`        | `^7.0`                     | `^11.3` or `^12` | `^8.3` | `13+` | Preferred Drupal core Starterkit consuming Emulsify's Whisk Starterkit       |
+| `2.2.x`        | `^6.0` (override required) | `^11.3`          | `^8.3` | `13+` | Deprecated legacy Whisk copy-and-customize generator; removed in Tools 3.0.0 |
+
+PHP must also satisfy the installed Drupal core release. The forward-
+compatibility CI job tests Drupal 12.x development releases on PHP 8.5 with a
+Drush 14.x development release. The Emulsify Drupal 6.x compatibility overlap
+is limited to Drupal `^11.3` because that theme line supports Drupal `^10.3` or
+`^11`, while Tools 2.2 requires Drupal `^11.3` or `^12`.
+
+Generated favicon deployment, favicon migration, and admin-theme favicon
+features require the Emulsify Drupal 7.x companion theme APIs.
+
+Official Emulsify Drupal 6.x releases declare `drupal/emulsify_tools:^1.0` in
+both Composer and theme metadata. Using this Tools 2.2 compatibility path
+therefore requires an intentional temporary project override or patch for
+those constraints. The fallback preserves generation behavior; it does not
+relax dependency declarations in the installed Emulsify 6.x parent theme.
+
+### Project scope
+
+- Twig extensions and theme Twig namespaces are provided by this module and do
+  not require `drupal/emulsify` as a hard Composer dependency.
+- Child-theme generation requires an installed compatible Emulsify Drupal theme
+  and consumes the Whisk source supplied by that theme.
+- `favicon-generate`, `favicon-status`, and `favicon-reset` require Emulsify
+  Drupal 7.x and delegate package operations to its companion favicon APIs.
+- `repair-favicon-config` is a separate source-repair workflow. It copies
+  missing favicon configuration and schema definitions from Emulsify Drupal
+  7.x into existing child-theme source files; it does not deploy packages.
 
 ## Usage
 
-### Child theme generation
+### Child-theme generation
 
-Emulsify Tools 2.x still includes the supported Drush workflow for generating
-Emulsify Drupal 6.x child themes. Use either command form:
+Emulsify Tools automatically selects generation behavior from the installed
+`whisk` source format. Emulsify Drupal 7.x supplies the Whisk Starterkit,
+including `whisk.starterkit.yml`, so generation delegates to Drupal core.
+A recognizable legacy `whisk.info.emulsify.yml` source with neither
+`whisk.info.yml` nor `whisk.starterkit.yml` uses the Emulsify Drupal 6.x
+compatibility workflow instead; no command flag is needed. Incomplete or
+missing Starterkit sources fail a focused Emulsify preflight, while malformed
+modern metadata is reported by Drupal core. Neither case silently falls back.
 
-`drush emulsify_tools:bake [theme_name]`
+For Emulsify Drupal 7.x, these equivalent commands consume the same Whisk
+Starterkit and produce the same generated file tree and file contents when
+given the same machine name, display name, and description. The parity test
+also compares entry types, symlink targets, and regular-file executable
+permission bits:
 
-`drush emulsify [theme_name]`
+```bash
+php web/core/scripts/drupal generate-theme my_theme \
+  --name="My Theme" \
+  --description="Project theme" \
+  --starterkit=whisk \
+  --path=themes/custom \
+  --no-interaction
 
-The commands are equivalent. The generated child theme uses `emulsify` as its
-runtime parent theme and should be created under the Drupal custom theme path
-expected by the command, such as `web/themes/custom/my_theme` in a
-Composer-based Drupal project.
+drush emulsify_tools:bake my_theme \
+  --name="My Theme" \
+  --description="Project theme"
 
-Drupal core Starterkit-based generation is being prepared for the Emulsify Drupal
-7.x release line. For Emulsify Drupal 6.x child theme projects, use Emulsify
-Tools for child theme generation.
+drush emulsify my_theme \
+  --name="My Theme" \
+  --description="Project theme"
+
+drush emulsify_tools:generate-theme my_theme \
+  --name="My Theme" \
+  --description="Project theme"
+```
+
+`emulsify` is an alias of `emulsify_tools:bake`.
+`emulsify_tools:generate-theme` is an additional descriptive alias of the same
+command. The generated child theme uses `emulsify` as its runtime parent theme
+and is created at `web/themes/custom/my_theme` in a standard Composer-based
+Drupal project. A human-readable positional value such as
+`drush emulsify "My Theme"` remains supported and resolves to `my_theme`.
+
+| Input             | Meaning                                                                      | Default                      |
+| ----------------- | ---------------------------------------------------------------------------- | ---------------------------- |
+| Positional `name` | Machine name or label used to derive the normalized destination machine name | Required                     |
+| `--name`          | Human-readable `name` written to the generated `.info.yml` file              | Original positional value    |
+| `--description`   | Human-readable `description` written to the generated `.info.yml` file       | Empty on the Starterkit path |
+
+Positional labels are trimmed, transliterated to ASCII, lowercased, and
+normalized with single underscores; for example, `Crème Brûlée Theme` resolves
+to `creme_brulee_theme`. `--name` does not override that resolved machine name.
+
+The Emulsify Drupal 6.x compatibility workflow warns that the legacy generation
+path is deprecated, will be removed in Emulsify Tools 3.0.0, and should be
+replaced by Emulsify Drupal 7.x with Drupal Starterkit generation. Until then,
+`--name` is safely applied to legacy generated themes. A nonempty
+`--description` replaces the legacy source description; an omitted or empty
+description preserves the source default.
+
+#### Missing Whisk troubleshooting
+
+The generation preflight distinguishes these installation problems:
+
+- **Base theme unavailable:** Drupal cannot discover the `emulsify` theme and
+  reports `The Emulsify base theme was not found`.
+- **Whisk source unavailable:** the discovered base theme does not contain its
+  `whisk` directory and reports `The Emulsify Whisk Starterkit was not found`.
+- **Starterkit metadata unavailable:** the Whisk directory does not contain
+  `whisk.starterkit.yml` and is not a complete Drupal Starterkit source.
+
+Install or update the preferred companion theme and rebuild Drupal's caches:
+
+```bash
+composer require "drupal/emulsify:^7"
+drush cr
+```
+
+Then confirm the installed Emulsify theme contains
+`whisk/whisk.starterkit.yml`. Errors from a present but malformed modern Whisk
+Starterkit remain Drupal core output and never trigger the deprecated legacy
+fallback.
 
 Generated favicon deployment for Emulsify Drupal 7.x companion themes:
 
@@ -50,7 +142,7 @@ Generated favicon deployment for Emulsify Drupal 7.x companion themes:
 
 `drush emulsify_tools:favicon-reset [theme_name]`
 
-Child theme source repair:
+Child-theme favicon source repair, separate from package deployment:
 
 `drush emulsify_tools:repair-favicon-config`
 
@@ -71,9 +163,9 @@ Emulsify Drupal page requests do not generate missing favicon package files.
 After config import, `emulsify_tools:favicon-generate` is the supported
 deployment path for recreating packages from saved portable SVG config.
 
-The favicon commands delegate generation, status, and reset behavior to the
-Emulsify Drupal favicon manager instead of duplicating package logic in this
-module.
+The favicon deployment commands delegate generation, status, and reset behavior
+to the Emulsify Drupal 7.x companion favicon manager APIs instead of duplicating
+package logic in this module.
 
 The optional admin-theme favicon toggle in this module only reuses an already
 generated Emulsify package on admin routes. It does not replace the Emulsify
@@ -234,14 +326,33 @@ This adds the ability to do a `switch/case` function from within Twig templates.
 
 Note that the `switch`, `endswitch`, and `case` tags are required and the `default` is optional.
 
-## Updating 6.x to 7.x
+## Upgrading Emulsify Drupal 6.x to 7.x
+
+### Child-theme generation
+
+Emulsify Tools 2.2 retains the Emulsify Drupal 6.x generator only as a
+deprecated compatibility path and emits a warning whenever it is used. Upgrade
+the Emulsify parent theme to 7.x before Emulsify Tools 3.0.0 removes that path.
+Once the installed `whisk` source contains Starterkit metadata, the same
+`drush emulsify` and `drush emulsify_tools:bake` commands and the descriptive
+`drush emulsify_tools:generate-theme` alias automatically use Drupal core; no
+command configuration change is required.
+Existing generated child themes are not rewritten. Generation continues to
+protect an existing destination, so use a new machine name unless you have
+intentionally removed the old generated directory.
+
+Remove any temporary Emulsify 6.x dependency override after upgrading the
+parent theme and return the project to the normal Emulsify 7.x/Tools 2.x
+constraints.
+
+### Favicon migration
 
 Upgrading from Emulsify 6.x to 7.x introduces a new generated favicon workflow.
 Instead of relying only on legacy theme-level favicon settings, Emulsify 7.x
 stores a portable SVG source and generated package metadata in theme settings so
 favicon packages can be regenerated consistently across environments.
 
-### What changes
+#### What changes
 
 - Active theme settings gain new favicon keys such as `favicon_source_svg`,
   `favicon_source_filename`, platform-specific color and padding settings, and
@@ -264,7 +375,7 @@ package files in each environment. Use
 and `drush emulsify_tools:favicon-reset [theme_name]` when you intentionally
 want to remove generated package state.
 
-### Child Theme Source Repair
+### Child-theme source repair
 
 Run the repair command in the Drupal site root to update older Emulsify-based
 child theme codebases:
@@ -303,40 +414,78 @@ changes after running the command.
 ### Validation
 
 - `npm run lint`
-- `composer test:unit`
+- `composer test`
+- `composer analyse`
+- `bash -n .github/scripts/generation-smoke.sh`
+- `shellcheck .github/scripts/generation-smoke.sh`
 - `bash .github/scripts/favicon-command-smoke.sh /path/to/drupal-site [theme_name]`
   for a prepared integration fixture with Emulsify Drupal 7.x, Emulsify Tools
   2.x, and favicon source config.
 
-### Generation Smoke Test
+### Emulsify Drupal 7.x Generation Smoke Test
 
-To validate the Emulsify Drupal 6.x child theme generation workflow against this checkout, run:
+The required **Generation Smoke / Real Drupal generation** CI matrix runs this
+script with Drupal 11.3, PHP 8.3, and Drush 13, plus the claimed forward
+compatibility combination of Drupal 12.x-dev, PHP 8.5, and Drush 14.x-dev.
+Both jobs install Emulsify Drupal 7.x and this checkout as a local Composer
+package.
 
+Run the same integration test locally from the repository root:
+
+```bash
+bash .github/scripts/generation-smoke.sh
 ```
-.github/scripts/generation-smoke.sh
+
+With PHP 8.5 active, reproduce the forward-compatibility job with:
+
+```bash
+DRUPAL_VERSION=dev-main DRUSH_VERSION=14.x-dev@dev \
+  bash .github/scripts/generation-smoke.sh
 ```
 
-The script creates a disposable Drupal fixture site, installs Emulsify Drupal
-`^6`, installs this 2.x checkout through the script's local `TOOLS_VERSION`
-fixture alias, verifies both Drush command help targets, runs
-`drush emulsify watson`, validates the generated theme files, and enables the
-generated child theme. It intentionally does not test Drupal core Starterkit
-generation or the Emulsify Drupal 7.x favicon deployment workflow.
+The script creates a disposable SQLite site, verifies discovery of
+`emulsify_tools:bake`, `emulsify`, `emulsify_tools:generate-theme`, and
+`emulsify_tools:repair-favicon-config`, checks `--name` and `--description`
+parsing, and verifies that Drupal core and Drush produce the same generated file
+tree and file contents. The manifest comparison also records relative paths,
+entry types, SHA-256 regular-file hashes, symlink targets, and regular-file
+executable permission bits. This is structural and content parity, not complete
+filesystem metadata identity: timestamps, ownership, and other permission bits
+are not compared.
 
-Requirements: Composer and PHP. The default SQLite fixture database also requires `pdo_sqlite`.
+The smoke test also parses generated YAML to verify the requested name and
+description, the Emulsify base theme, and the Emulsify Tools dependency. It
+checks human-readable positional-name normalization, full-tree preservation on
+an existing-destination failure, missing-source and missing-metadata diagnostics
+with restoration, Starterkit-only file removal, unresolved placeholder removal,
+and generated theme enablement. It intentionally exercises only the preferred
+7.x Starterkit path; legacy 6.x compatibility is covered by the PHPUnit fixtures.
+
+Local requirements are Bash, Composer 2, a compatible PHP CLI with `pdo_sqlite`,
+and standard Unix utilities (`tar`, `diff`, and `grep`). Composer
+installs Drupal, Drush, and Emulsify in the disposable fixture; no pre-existing
+Drupal site or global Drush installation is required. ShellCheck is required
+only to run the same script lint used by CI.
 
 Optional environment variables:
 
 ```
+TMPDIR=/tmp
 FIXTURE_DIR=/tmp/emulsify-tools-generation-smoke
 DRUPAL_VERSION=11.3.*
-EMULSIFY_VERSION=^6
-TOOLS_VERSION=1.0.99
+EMULSIFY_VERSION=^7
+TOOLS_VERSION=2.2.x-dev
 DRUSH_VERSION=^13
 THEME_NAME=watson
+THEME_LABEL="Watson Theme"
+THEME_DESCRIPTION="Project theme: Starterkit and Drush parity."
 DB_URL=sqlite://sites/default/files/.ht.sqlite
 KEEP_FIXTURE=1
 ```
+
+`FIXTURE_DIR` defaults to a directory beneath `TMPDIR`, or beneath `/tmp` when
+`TMPDIR` is unset. Set `KEEP_FIXTURE=1` to retain the disposable Drupal site for
+inspection; any temporarily renamed Whisk source path is still restored.
 
 ### Committing Changes
 

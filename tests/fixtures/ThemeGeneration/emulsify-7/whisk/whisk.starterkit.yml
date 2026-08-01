@@ -1,0 +1,6 @@
+ignore:
+  - '/whisk.info.emulsify.yml'
+  - '/whisk.starterkit.yml'
+info:
+  core_version_requirement: '^11.3 || ^12'
+  hidden: null

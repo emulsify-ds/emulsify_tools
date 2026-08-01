@@ -1,6 +1,6 @@
 {
   "name": "emulsify-ds/emulsify_tools",
-  "description": "Provides Twig functions and child theme generation for use with Emulsify",
+  "description": "Provides Twig extensions, theme Twig namespaces, child-theme generation, and favicon deployment commands for Emulsify.",
   "type": "drupal-module",
   "homepage": "https://emulsify.info",
   "license": "GPL-2.0-only",
@@ -26,7 +26,8 @@
     "drush/drush": "<13.0"
   },
   "suggest": {
-    "drush/drush": "Install Drush 13+ to use the emulsify_tools:bake and favicon deployment commands."
+    "drupal/emulsify": "Install Emulsify Drupal for child-theme generation; version 7.x is required for favicon deployment and repair workflows.",
+    "drush/drush": "Install Drush 13+ to use child-theme generation and favicon deployment and repair commands."
   },
   "scripts": {
     "lint": [
@@ -34,8 +35,12 @@
     ],
     "lint:phpcs": "phpcs -q",
     "lint:phpcbf": "phpcbf",
-    "test:unit": "phpunit --configuration phpunit.xml.dist",
-    "test:deprecations": "phpstan analyse --configuration phpstan.neon.dist --no-progress --memory-limit=1G --debug"
+    "test": "phpunit --configuration phpunit.xml.dist",
+    "test:unit": "phpunit --configuration phpunit.xml.dist --testsuite unit",
+    "test:integration": "phpunit --configuration phpunit.xml.dist --testsuite integration",
+    "test:kernel": "phpunit --configuration phpunit.xml.dist --testsuite kernel",
+    "analyse": "phpstan analyse --configuration phpstan.neon.dist --no-progress --memory-limit=1G --debug",
+    "test:deprecations": "@analyse"
   },
   "config": {
     "allow-plugins": {

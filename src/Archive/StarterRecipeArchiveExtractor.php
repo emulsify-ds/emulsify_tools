@@ -9,6 +9,11 @@ use Symfony\Component\Filesystem\Filesystem;
 
 /**
  * Extracts starter recipe archives without Drupal's deprecated archiver API.
+ *
+ * @deprecated in emulsify_tools:2.2.0 and is removed from
+ *   emulsify_tools:3.0.0. Use
+ *   \Drupal\emulsify_tools\ThemeGeneration\ThemeGeneratorInterface instead.
+ * @see https://www.drupal.org/project/drupal/issues/3364885
  */
 final class StarterRecipeArchiveExtractor {
 
