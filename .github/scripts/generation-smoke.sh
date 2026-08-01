@@ -8,6 +8,7 @@ FIXTURE_DIR="${FIXTURE_DIR:-${TMPDIR:-/tmp}/emulsify-tools-generation-smoke}"
 DRUPAL_VERSION="${DRUPAL_VERSION:-11.3.*}"
 EMULSIFY_VERSION="${EMULSIFY_VERSION:-^7}"
 TOOLS_VERSION="${TOOLS_VERSION:-2.2.x-dev}"
+EXPECTED_TOOLS_DEPENDENCY="${EXPECTED_TOOLS_DEPENDENCY:-}"
 DRUSH_VERSION="${DRUSH_VERSION:-^13}"
 THEME_NAME="${THEME_NAME:-watson}"
 THEME_LABEL="${THEME_LABEL:-Watson Theme}"
@@ -183,6 +184,15 @@ assert_manifests_equal() {
 
 assert_generated_metadata() {
   local info_file="$1"
+  local expected_tools_dependency="$EXPECTED_TOOLS_DEPENDENCY"
+
+  if [[ -z "$expected_tools_dependency" ]]; then
+    if [[ "$TOOLS_VERSION" =~ ^v?([0-9]+)\.([0-9]+)(\.|$) ]]; then
+      expected_tools_dependency="drupal:emulsify_tools (^${BASH_REMATCH[1]}.${BASH_REMATCH[2]})"
+    else
+      fail "Unable to derive an expected dependency from TOOLS_VERSION=${TOOLS_VERSION}. Set EXPECTED_TOOLS_DEPENDENCY explicitly."
+    fi
+  fi
 
   # Dollar signs below are PHP variables.
   # shellcheck disable=SC2016
@@ -234,7 +244,7 @@ if (!is_array($dependencies) || !in_array($argv[5], $dependencies, true)) {
     "$info_file" \
     "$THEME_LABEL" \
     "$THEME_DESCRIPTION" \
-    'drupal:emulsify_tools (^2.0)' || fail "Generated theme metadata validation failed."
+    "$expected_tools_dependency" || fail "Generated theme metadata validation failed."
 }
 
 command -v composer >/dev/null || fail "composer is required."
