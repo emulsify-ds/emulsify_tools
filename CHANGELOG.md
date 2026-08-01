@@ -1,5 +1,18 @@
 # Changelog
 
+# [2.2.0](https://github.com/emulsify-ds/emulsify_tools/compare/2.1.2...2.2.0) (2026-08-01)
+
+
+### Bug Fixes
+
+* **generator:** align Drush output with Drupal StarterKit ([ed72072](https://github.com/emulsify-ds/emulsify_tools/commit/ed72072fbc660a5e6fc113bc0b4610791c1becb1))
+
+
+### Features
+
+* **generator:** improve naming and Starterkit diagnostics ([d726fd9](https://github.com/emulsify-ds/emulsify_tools/commit/d726fd90c7ce686f485075a9d04482abfae46704))
+* **generator:** preserve legacy generation fallback in 2.x ([1fd8b5a](https://github.com/emulsify-ds/emulsify_tools/commit/1fd8b5aa1b2408da4d33b9ecf56caa1f62d39fdd))
+
 ## [2.1.2](https://github.com/emulsify-ds/emulsify_tools/compare/2.1.1...2.1.2) (2026-07-20)
 
 
