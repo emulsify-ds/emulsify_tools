@@ -31,8 +31,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Add remote SSH Key
+      - name: Check Drupal.org sync configuration
+        id: drupal_sync
         if: steps.semantic.outputs.new_release_published == 'true'
+        env:
+          DRUPAL_ORG_SSH_KEY: ${{ secrets.DRUPAL_ORG_SSH_KEY }}
+          DRUPAL_REPO_URL: ${{ secrets.DRUPAL_REPO_URL }}
+          KNOWN_HOSTS: ${{ secrets.KNOWN_HOSTS }}
+        run: |
+          if [[ -z "$DRUPAL_ORG_SSH_KEY" || -z "$DRUPAL_REPO_URL" || -z "$KNOWN_HOSTS" ]]; then
+            echo "::warning title=Drupal.org sync skipped::Configure DRUPAL_ORG_SSH_KEY, DRUPAL_REPO_URL, and KNOWN_HOSTS to enable automatic release mirroring."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Add remote SSH Key
+        if: steps.drupal_sync.outputs.enabled == 'true'
         uses: shimataro/ssh-key-action@v2
         with:
           key: ${{ secrets.DRUPAL_ORG_SSH_KEY }}
@@ -40,7 +55,7 @@ jobs:
           known_hosts: ${{ secrets.KNOWN_HOSTS }}
 
       - name: Sync release tags to Drupal.org Project
-        if: steps.semantic.outputs.new_release_published == 'true'
+        if: steps.drupal_sync.outputs.enabled == 'true'
         env:
           RELEASE_TAG: ${{ steps.semantic.outputs.new_release_git_tag }}
         run: |

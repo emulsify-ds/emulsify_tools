@@ -53,13 +53,6 @@ abstract class EmulsifyToolsKernelTestBase extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected static function getDrupalRoot(): string {
-    return dirname(__DIR__, 3) . '/vendor/drupal';
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function register(ContainerBuilder $container): void {
     parent::register($container);
 
