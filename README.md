@@ -138,7 +138,7 @@ KEEP_FIXTURE=1
 
 ### Committing Changes
 
-To facilitate automatic semantic release versioning, we utilize the [Conventional Changelog](https://github.com/conventional-changelog/conventional-changelog) standard through Commitizen. Follow these steps when commiting your work to ensure a better tomorrow.
+We utilize the [Conventional Changelog](https://github.com/conventional-changelog/conventional-changelog) standard through Commitizen. Follow these steps when committing your work to ensure useful release notes.
 
 1. Stage your changes, ensuring they encompass exactly what you wish to change, no more.
 2. Run `yarn commit` and follow the prompts to craft the perfect commit message.
@@ -148,21 +148,25 @@ To facilitate automatic semantic release versioning, we utilize the [Conventiona
 
 ---
 
-There's a two-step process to publish a new release to [the project page](https://www.drupal.org/project/emulsify_tools) on Drupal.org.
+Emulsify Tools 1.x releases are published manually. This keeps GitHub and Drupal.org publication as separate, deliberate actions.
 
-1. Cut a release on GitHub
-2. Select the generated tag for the release on Drupal.org, and set it as the "recommended" release.
+1. Merge the release-ready changes into `1.1.x` and confirm the Generation Smoke workflow passes.
+2. Create and push a numeric release tag, such as `1.1.1`, to GitHub.
+3. Create the matching GitHub release.
+4. Push the `1.1.x` branch and release tag to Drupal.org.
+5. Create the release on Drupal.org and set it as the supported, recommended release.
 
 ### Creating a release on GitHub
 
-- Once one or more PRs are merged into the development branch, [create a "Release" PR](https://github.com/emulsify-ds/emulsify_tools/compare/main...feature-branch) to merge the latest from that branch into `main`.
-- As soon as that PR is merged, a [GitHub action](https://github.com/emulsify-ds/emulsify_tools/actions) will kick off to cut a release based on the commit messages in that release.
-  - _Note: This workflow will also push the new tag to drupal.org so that you can select it in the next section._
-- When that is finished, you should see the new release listed on the [Releases page](https://github.com/emulsify-ds/emulsify_tools/releases) for the repository.
+- Fetch the latest `1.1.x` branch and create an annotated numeric tag from it.
+- Push only that tag to GitHub.
+- Create a GitHub release from the tag and include the relevant release notes.
+- Verify the release on the [GitHub Releases page](https://github.com/emulsify-ds/emulsify_tools/releases).
 
 ### Publishing the release to Drupal.org
 
-- Go to the [Releases tab for the Emulsify Twig project](https://www.drupal.org/node/3094752/edit/releases) on drupal.org. (You'll need to be a maintainer to access this page.)
+- Manually push the `1.1.x` branch and matching numeric tag to the Drupal.org Git remote.
+- Go to the [Releases tab for Emulsify Tools](https://www.drupal.org/node/3094752/edit/releases) on Drupal.org. (You'll need to be a maintainer to access this page.)
 - Click "Add new release"
 - Select the tag for the latest release and click Next
 - Copy the release notes from the GitHub releases page, and reformat them according to the wysiwyg options

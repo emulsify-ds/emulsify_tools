@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2016
 
 set -euo pipefail
 
@@ -155,8 +156,8 @@ vendor/bin/drush site:install minimal \
   --account-pass=admin \
   -y
 
-log "Enabling Emulsify Tools and the Emulsify parent theme"
-vendor/bin/drush pm:enable emulsify_tools -y
+log "Enabling Emulsify Tools, Components, and the Emulsify parent theme"
+vendor/bin/drush pm:enable components emulsify_tools -y
 vendor/bin/drush theme:enable emulsify -y
 vendor/bin/drush cr -y
 
