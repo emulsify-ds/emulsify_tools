@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Drupal\emulsify_tools;
 
-use Drupal\Component\Utility\Html;
 use Drupal\Core\Template\Attribute;
 
 /**
@@ -54,7 +53,7 @@ final class TwigAttributeManager {
       $existingClasses = $existingClassValue !== NULL
         ? (array) $this->normalizeAttributeValue('class', $existingClassValue)
         : [];
-      $attributes->setAttribute('class', $this->sanitizeClasses(array_merge($classes, $existingClasses)));
+      $attributes->setAttribute('class', $this->normalizeClasses(array_merge($classes, $existingClasses)));
     }
 
     return $attributes;
@@ -222,7 +221,7 @@ final class TwigAttributeManager {
     }
 
     if ($name === 'class') {
-      return $this->sanitizeClasses($normalizedValues);
+      return $this->normalizeClasses($normalizedValues);
     }
 
     return $normalizedValues;
@@ -245,7 +244,7 @@ final class TwigAttributeManager {
     $normalizedExistingValue = $this->normalizeAttributeValue($name, $existingValue);
 
     if ($name === 'class') {
-      return $this->sanitizeClasses(array_merge((array) $normalizedExistingValue, (array) $incomingValue));
+      return $this->normalizeClasses(array_merge((array) $normalizedExistingValue, (array) $incomingValue));
     }
 
     if (is_array($normalizedExistingValue) || is_array($incomingValue)) {
@@ -269,22 +268,22 @@ final class TwigAttributeManager {
   }
 
   /**
-   * Sanitizes CSS classes.
+   * Normalizes CSS classes without changing valid class-name characters.
    *
    * @param mixed[] $classes
-   *   The classes to sanitize.
+   *   The classes to normalize.
    *
    * @return string[]
-   *   The sanitized class list.
+   *   The normalized class list.
    */
-  private function sanitizeClasses(array $classes): array {
-    $sanitizedClasses = array_map(
-      static fn (mixed $class): string => Html::cleanCssIdentifier((string) $class),
+  private function normalizeClasses(array $classes): array {
+    $normalizedClasses = array_map(
+      static fn (mixed $class): string => (string) $class,
       $classes,
     );
 
     return array_values(array_unique(array_filter(
-      $sanitizedClasses,
+      $normalizedClasses,
       static fn (string $class): bool => $class !== '',
     )));
   }
