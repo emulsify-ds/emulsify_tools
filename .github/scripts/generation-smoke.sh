@@ -160,6 +160,34 @@ vendor/bin/drush pm:enable emulsify_tools -y
 vendor/bin/drush theme:enable emulsify -y
 vendor/bin/drush cr -y
 
+log "Checking that bem() preserves utility class tokens"
+bem_classes="$(vendor/bin/drush php:eval '
+$attributes = (new \Drupal\emulsify_tools\BemTwigExtension())->bem(
+  [],
+  "card",
+  [],
+  "",
+  ["hover:bg-blue-500", "md:hover:text-white", "w-1/2", "grid-cols-[1fr_2fr]", "[&>*]:p-4"],
+);
+echo json_encode($attributes->toArray()["class"], JSON_UNESCAPED_SLASHES);
+')"
+expected_bem_classes='["card","hover:bg-blue-500","md:hover:text-white","w-1/2","grid-cols-[1fr_2fr]","[&>*]:p-4"]'
+[[ "$bem_classes" == "$expected_bem_classes" ]] || fail "bem() changed utility class tokens: ${bem_classes}"
+
+log "Checking that bem() class output remains HTML escaped"
+bem_rendered="$(vendor/bin/drush php:eval '
+$attributes = (new \Drupal\emulsify_tools\BemTwigExtension())->bem(
+  [],
+  "card",
+  [],
+  "",
+  ["x\" onmouseover=\"alert(1)"],
+);
+echo (string) $attributes;
+')"
+expected_bem_rendered=' class="card x&quot; onmouseover=&quot;alert(1)"'
+[[ "$bem_rendered" == "$expected_bem_rendered" ]] || fail "bem() class output was not escaped: ${bem_rendered}"
+
 log "Checking that the public Drush command is discoverable"
 vendor/bin/drush list | grep -Fq 'emulsify_tools:bake' || fail "Drush command emulsify_tools:bake was not discovered."
 vendor/bin/drush help emulsify >/dev/null || fail "Drush help for emulsify failed."
