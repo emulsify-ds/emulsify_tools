@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.1](https://github.com/emulsify-ds/emulsify_tools/compare/2.2.0...2.2.1) (2026-08-11)
+
+
+### Bug Fixes
+
+* **twig:** preserve utility class syntax ([fe3b061](https://github.com/emulsify-ds/emulsify_tools/commit/fe3b061be9265e2af3979310edd0358617ea636c))
+
 # [2.2.0](https://github.com/emulsify-ds/emulsify_tools/compare/2.1.2...2.2.0) (2026-08-01)
 
 
