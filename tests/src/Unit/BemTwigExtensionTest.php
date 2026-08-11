@@ -24,7 +24,7 @@ final class BemTwigExtensionTest extends UnitTestCase {
   public function testBemBuildsExpectedClassesFromPositionalArguments(): void {
     $extension = new BemTwigExtension(new TwigAttributeManager());
     $sourceAttributes = new Attribute([
-      'class' => ['existing'],
+      'class' => ['dark:lg:hover:text-white'],
       'data-role' => 'heading',
     ]);
 
@@ -33,7 +33,7 @@ final class BemTwigExtensionTest extends UnitTestCase {
       'title',
       ['small', 'red'],
       'card',
-      ['js-click', 'bad value'],
+      ['md:hover:bg-blue-500', 'w-1/2', '[&>*]:underline'],
     );
 
     $resultArray = $result->toArray();
@@ -42,9 +42,10 @@ final class BemTwigExtensionTest extends UnitTestCase {
       'card__title',
       'card__title--small',
       'card__title--red',
-      'js-click',
-      'bad-value',
-      'existing',
+      'md:hover:bg-blue-500',
+      'w-1/2',
+      '[&>*]:underline',
+      'dark:lg:hover:text-white',
     ], $resultArray['class']);
     self::assertSame('heading', $resultArray['data-role']);
   }

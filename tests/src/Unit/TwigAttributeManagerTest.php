@@ -20,9 +20,9 @@ final class TwigAttributeManagerTest extends UnitTestCase {
   /**
    * Tests add_attributes()-style merging and attribute detachment.
    */
-  public function testMergeContextAttributesDetachesAndMergesValues(): void {
+  public function testMergeContextAttributesPreservesClassNamesAndNormalizesValues(): void {
     $sourceAttributes = new Attribute([
-      'class' => ['existing', 'existing'],
+      'class' => ['md:hover:bg-blue-500', 'md:hover:bg-blue-500', ''],
       'data-role' => 'banner',
     ]);
 
@@ -30,7 +30,15 @@ final class TwigAttributeManagerTest extends UnitTestCase {
     $result = $manager->mergeContextAttributes(
       ['attributes' => $sourceAttributes],
       [
-        'class' => ['new class', 'existing'],
+        'class' => [
+          'w-1/2',
+          '!mt-0',
+          '[mask-type:luminance]',
+          '',
+          NULL,
+          7,
+          'md:hover:bg-blue-500',
+        ],
         'title' => 'Hero',
         'data-values' => ['first', 'second'],
       ],
@@ -38,7 +46,13 @@ final class TwigAttributeManagerTest extends UnitTestCase {
 
     $resultArray = $result->toArray();
 
-    self::assertSame(['existing', 'new-class'], $resultArray['class']);
+    self::assertSame([
+      'md:hover:bg-blue-500',
+      'w-1/2',
+      '!mt-0',
+      '[mask-type:luminance]',
+      '7',
+    ], $resultArray['class']);
     self::assertSame('banner', $resultArray['data-role']);
     self::assertSame('Hero', $resultArray['title']);
     self::assertSame(['first', 'second'], $resultArray['data-values']);
@@ -48,16 +62,16 @@ final class TwigAttributeManagerTest extends UnitTestCase {
   /**
    * Tests BEM attribute merging preserves generated class precedence.
    */
-  public function testBuildBemAttributesMergesAndSanitizesClasses(): void {
+  public function testBuildBemAttributesMergesAndNormalizesClasses(): void {
     $sourceAttributes = new Attribute([
-      'class' => ['existing', 'bad value'],
+      'class' => ['dark:lg:hover:text-white', 'dark:lg:hover:text-white'],
       'data-role' => 'banner',
     ]);
 
     $manager = new TwigAttributeManager();
     $result = $manager->buildBemAttributes(
       ['attributes' => $sourceAttributes],
-      ['card__title', 'card__title--featured', 'js hook'],
+      ['card__title', 'card__title--featured', '[&>*]:underline'],
     );
 
     $resultArray = $result->toArray();
@@ -65,12 +79,33 @@ final class TwigAttributeManagerTest extends UnitTestCase {
     self::assertSame([
       'card__title',
       'card__title--featured',
-      'js-hook',
-      'existing',
-      'bad-value',
+      '[&>*]:underline',
+      'dark:lg:hover:text-white',
     ], $resultArray['class']);
     self::assertSame('banner', $resultArray['data-role']);
     self::assertSame([], $sourceAttributes->toArray());
+  }
+
+  /**
+   * Tests Drupal escapes class values when rendering the attribute object.
+   */
+  public function testRenderedAttributesEscapeClassValues(): void {
+    $manager = new TwigAttributeManager();
+    $result = $manager->mergeContextAttributes(
+      [],
+      [
+        'class' => [
+          'hover:bg-red-500',
+          'x" onmouseover="alert(1)',
+          '<script>',
+        ],
+      ],
+    );
+
+    self::assertSame(
+      ' class="hover:bg-red-500 x&quot; onmouseover=&quot;alert(1) &lt;script&gt;"',
+      (string) $result,
+    );
   }
 
 }
