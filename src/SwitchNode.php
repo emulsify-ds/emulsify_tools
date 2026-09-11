@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\emulsify_tools;
 
+use Twig\Attribute\YieldReady;
 use Twig\Compiler;
 use Twig\Node\Node;
 
@@ -14,6 +15,7 @@ use Twig\Node\Node;
  *
  * @see https://github.com/craftcms/cms.
  */
+#[YieldReady]
 final class SwitchNode extends Node {
 
   /**
