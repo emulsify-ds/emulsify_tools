@@ -1,6 +1,6 @@
 {
   "name": "emulsify_tools",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "Provides Twig extensions, theme Twig namespaces, child-theme generation, and favicon deployment commands for Emulsify.",
   "engines": {
     "node": ">=20.11"

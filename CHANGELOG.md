@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.2](https://github.com/emulsify-ds/emulsify_tools/compare/2.2.1...2.2.2) (2026-09-11)
+
+
+### Bug Fixes
+
+* **twig:** support yield mode in switch tags ([4b11634](https://github.com/emulsify-ds/emulsify_tools/commit/4b116345f5c5969dfac8409479ef5735dd376de4))
+
 ## [2.2.1](https://github.com/emulsify-ds/emulsify_tools/compare/2.2.0...2.2.1) (2026-08-11)
 
 
